@@ -2,221 +2,378 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Transferencia de ficheros con PeerJS (fallback)</title>
+<title>File‑share robust with PeerJS (fallback + ACK)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f5f5f5}
-  .card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:600px;margin:auto}
+  .card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:700px;margin:auto}
   h1{font-size:1.6rem;margin:0 0 .5rem}
+  #info{font-size:.9rem;background:#fafafa;border:1px solid #ddd;padding:.5rem;margin-top:.5rem;border-radius:4px}
   #statusBar{margin-top:1rem;height:1.2rem;background:#e0e0e0;border-radius:4px;overflow:hidden}
-  #statusBar div{height:100%;width:0;background:#4caf50;transition:width .3s}
+  #statusBar div{height:100%;width:0;background:#4caf50;transition:width .2s}
   #link{word-break:break-all;color:#0066cc}
-  button{background:#0066ff;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;margin-right:.5rem}
+  button{background:#0066ff;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;margin-right:.4rem}
   button:disabled{background:#999;cursor:not-allowed}
   #msg{margin-top:.8rem;padding:.5rem;background:#fffae6;border-left:4px solid #ffeb3b}
   #langToggle{position:fixed;top:1rem;right:1rem;background:#eee;color:#333;padding:.3rem .6rem;border-radius:4px;cursor:pointer}
 </style>
 </head>
 <body>
+
 <div id="langToggle">🇪🇸 / 🇬🇧</div>
 
 <div class="card">
   <h1 id="title">🔗 Compartir archivo / Share file</h1>
 
-  <!-- SEND SIDE -->
+  <!-- ---------- SEND SIDE ---------- -->
   <div id="sender">
     <input type="file" id="fileInput">
     <p id="shareLink" style="display:none;">
       <span id="shareText">Copia y pega esta URL en el navegador del receptor</span>:
-      <br>
-      <span id="link"></span>
+      <br><span id="link"></span>
       <button id="copyBtn">📋 Copy / Copiar</button>
     </p>
     <div id="msg"></div>
   </div>
 
-  <!-- RECEIVE SIDE -->
+  <!-- ---------- RECEIVE SIDE ---------- -->
   <div id="receiver" style="display:none;">
     <p><b id="recvLabel">Receiving:</b> <span id="recvName"></span></p>
     <a id="downloadBtn" style="display:none;" download>⬇️ Download / Descargar</a>
     <div id="msg"></div>
   </div>
 
-  <!-- PROGRESS -->
+  <!-- ---------- PROGRESS ---------- -->
   <div id="statusBar"><div></div></div>
+
+  <!-- ---------- DEBUG PANEL ---------- -->
+  <div id="info">
+    <strong>🔎 Debug info</strong><br>
+    <b>Peer ID:</b> <span id="myId">‑</span><br>
+    <b>Remote ID:</b> <span id="remoteId">‑</span><br>
+    <b>Server used:</b> <span id="serverUsed">‑</span><br>
+    <b>Connection:</b> <span id="connState">‑</span><br>
+    <b>RTT (ping):</b> <span id="rtt">‑</span> ms<br>
+    <b>Attempts:</b> <span id="attempts">0</span><br>
+    <b>Chunk size:</b> <span id="chunkSize">64 KB</span>
+  </div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (() => {
-  /* --------------------------------------------------------------
-   * 1️⃣  TEXTS (ES / EN) – same object as before
-   * ------------------------------------------------------------ */
+  /* ==============================================================
+   * 0️⃣  MULTI‑LANGUAGE TEXTS
+   * ============================================================== */
   const LANG = {
-    es:{title:'🔗 Compartir archivo',shareText:'Copia y pega esta URL en el navegador del receptor',copy:'📋 Copiar',copied:'✅ Copiado al portapapeles',waiting:'⏳ Esperando conexión…',connected:'✅ Conexión establecida',sending:'📤 Enviando archivo…',received:'📥 Archivo recibido',download:'⬇️ Descargar',recv:'Recibiendo:',finished:'✅ Transferencia completada',dontClose:'⚠️ No cierres la ventana hasta que la descarga termine',error:'❗ Error: '},
-    en:{title:'🔗 Share file',shareText:'Copy & paste this URL into the receiver’s browser',copy:'📋 Copy',copied:'✅ Copied to clipboard',waiting:'⏳ Waiting for connection…',connected:'✅ Connected',sending:'📤 Sending file…',received:'📥 File received',download:'⬇️ Download',recv:'Receiving:',finished:'✅ Transfer complete',dontClose:'⚠️ Do not close the window until the download finishes',error:'❗ Error: '}
+    es:{title:'🔗 Compartir archivo',shareText:'Copia y pega esta URL en el navegador del receptor',copy:'📋 Copiar',copied:'✅ Copiado',waiting:'⏳ Esperando conexión…',connected:'✅ Conexión establecida',sending:'📤 Enviando archivo…',receiving:'📥 Recibiendo archivo…',download:'⬇️ Descargar',recv:'Recibiendo:',finished:'✅ Transferencia completada',dontClose:'⚠️ No cierres la ventana hasta que la descarga termine',error:'❗ Error: ',retrying:'🔄 Reintentando…',paused:'⏸️ Pausado'},
+    en:{title:'🔗 Share file',shareText:'Copy & paste this URL into the receiver’s browser',copy:'📋 Copy',copied:'✅ Copied',waiting:'⏳ Waiting for connection…',connected:'✅ Connected',sending:'📤 Sending file…',receiving:'📥 Receiving file…',download:'⬇️ Download',recv:'Receiving:',finished:'✅ Transfer complete',dontClose:'⚠️ Do not close the window until the download finishes',error:'❗ Error: ',retrying:'🔄 Retrying…',paused:'⏸️ Paused'}
   };
-  let curLang = 'es';
-  const t = () => LANG[curLang];
-
-  /* --------------------------------------------------------------
-   * 2️⃣  UI helpers
-   * ------------------------------------------------------------ */
-  const ui = {
-    title:        document.getElementById('title'),
-    fileInput:    document.getElementById('fileInput'),
-    shareLink:    document.getElementById('shareLink'),
-    linkSpan:     document.getElementById('link'),
-    copyBtn:      document.getElementById('copyBtn'),
-    sender:       document.getElementById('sender'),
-    receiver:     document.getElementById('receiver'),
-    recvLabel:    document.getElementById('recvLabel'),
-    recvName:     document.getElementById('recvName'),
-    downloadBtn:  document.getElementById('downloadBtn'),
-    statusBar:    document.getElementById('statusBar').firstElementChild,
-    msgArea:      document.querySelectorAll('#msg'),
-    langToggle:   document.getElementById('langToggle')
-  };
-
-  const setLang = (l)=>{curLang=l;ui.title.textContent=t().title;ui.shareLink.querySelector('#shareText').textContent=t().shareText;ui.copyBtn.textContent=t().copy;ui.recvLabel.textContent=t().recv;ui.downloadBtn.textContent=t().download;ui.msgArea.forEach(m=>m.textContent='');};
+  let curLang='es';
+  const t=()=>LANG[curLang];
+  const setLang=l=>{curLang=l;document.getElementById('title').textContent=t().title;document.querySelector('#shareText').textContent=t().shareText;document.getElementById('copyBtn').textContent=t().copy;document.getElementById('recvLabel').textContent=t().recv;document.getElementById('downloadBtn').textContent=t().download;};
   setLang(curLang);
-  ui.langToggle.onclick=()=>setLang(curLang==='es'?'en':'es');
+  document.getElementById('langToggle').onclick=()=>setLang(curLang==='es'?'en':'es');
 
-  const setMsg = m=>ui.msgArea.forEach(x=>x.textContent=m);
+  /* ==============================================================
+   * 1️⃣  UI HELPERS
+   * ============================================================== */
+  const ui = {
+    fileInput:   document.getElementById('fileInput'),
+    shareLink:   document.getElementById('shareLink'),
+    linkSpan:    document.getElementById('link'),
+    copyBtn:     document.getElementById('copyBtn'),
+    sender:      document.getElementById('sender'),
+    receiver:    document.getElementById('receiver'),
+    recvName:    document.getElementById('recvName'),
+    downloadBtn: document.getElementById('downloadBtn'),
+    statusBar:   document.getElementById('statusBar').firstElementChild,
+    msgArea:     document.querySelectorAll('#msg'),
+    info: {
+      myId:      document.getElementById('myId'),
+      remoteId:  document.getElementById('remoteId'),
+      server:    document.getElementById('serverUsed'),
+      conn:      document.getElementById('connState'),
+      rtt:       document.getElementById('rtt'),
+      attempts:  document.getElementById('attempts'),
+      chunkSize: document.getElementById('chunkSize')
+    }
+  };
+  const setMsg = m=>ui.msgArea.forEach(e=>e.textContent=m);
+  const setInfo = (key,val)=>ui.info[key].textContent=val;
   const updateProgress = r=>{const p=Math.min(100,Math.round(r*100));ui.statusBar.style.width=p+'%';if(p===100)ui.statusBar.style.background='#2196F3';};
 
-  /* --------------------------------------------------------------
-   * 3️⃣  PEERJS FALLBACK LOGIC
-   * ------------------------------------------------------------ */
-  const servers = [
+  /* ==============================================================
+   * 2️⃣  CONFIGURACIÓN DE SERVIDORES Y ICE (STUN/TURN)
+   * ============================================================== */
+  const signalingServers = [
     {host:'0.peerjs.com', secure:true, port:443},
     {host:'peerjs.com',    secure:true, port:443},
     {host:'peerjs-server.herokuapp.com', secure:true, port:443},
     {host:'peerjscloud.com', secure:true, port:443}
   ];
+  const iceServers = [
+    {urls:'stun:stun.l.google.com:19302'},
+    // XirSys free TURN (no‑auth, limited usage) – works en la mayoría de firewalls
+    {urls:'turn:global.turn.twilio.com:3478?transport=udp',username:'free',credential:'free'},
+    {urls:'turn:global.turn.twilio.com:3478?transport=tcp',username:'free',credential:'free'}
+  ];
+
+  /* ==============================================================
+   * 3️⃣  CREAR PEER CON FALLBACK Y RETRIES
+   * ============================================================== */
+  const MAX_CONN_ATTEMPTS = 5;
+  let connAttempts = 0;
   let peer = null;
-  let serverIdx = 0;
-  const initPeer = () => {
-    if (serverIdx>=servers.length) {
-      setMsg(t().error+'No se pudo conectar a ningún servidor de señalización.');
+  let chosenServer = null;
+
+  const createPeer = () => {
+    if (connAttempts >= signalingServers.length) {
+      setMsg(t().error+'All signaling servers failed.');
       return;
     }
-    const cfg = servers[serverIdx];
+    const cfg = signalingServers[connAttempts];
+    chosenServer = cfg.host;
+    setInfo('server',chosenServer);
     try {
-      peer = new Peer(null, cfg);
-      peer.on('open', id=>{console.log('Peer opened with id',id,'using',cfg.host);});
-      peer.on('error', err=>{
-        console.warn('Error on',cfg.host,err);
-        // intento con el siguiente servidor
-        serverIdx++;
-        initPeer();
+      peer = new Peer(null, {
+        host: cfg.host,
+        secure: cfg.secure,
+        port: cfg.port,
+        config: {iceServers}
       });
-    } catch(e){
-      console.error('Excepción al crear Peer con',cfg.host,e);
-      serverIdx++;
-      initPeer();
+      peer.on('open', id => {
+        setInfo('myId', id);
+        console.log('Peer opened with id', id, 'via', chosenServer);
+      });
+      peer.on('error', err => {
+        console.warn('Peer error on',chosenServer, err);
+        connAttempts++;
+        setInfo('attempts', connAttempts);
+        createPeer();               // retry con siguiente servidor
+      });
+    } catch (e) {
+      console.error('Exception creating Peer', e);
+      connAttempts++;
+      setInfo('attempts', connAttempts);
+      createPeer();
     }
   };
-  initPeer();   // <-- arranca la cadena de intentos
+  createPeer();
 
-  /* --------------------------------------------------------------
-   * 4️⃣  SENDER (idem que antes)
-   * ------------------------------------------------------------ */
-  const CHUNK_SIZE = 64*1024;
-  let fileMeta=null;
-  let downloadFinished=false;
+  /* ==============================================================
+   * 4️⃣  MÉTRICAS DE RED (RTT) – ping usando DataChannel “heartbeat”
+   * ============================================================== */
+  let pingInterval = null;
+  const startPing = (conn) => {
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(()=>{
+      const start = Date.now();
+      conn.send({type:'ping',ts:start});
+      conn.once('data',msg=>{
+        if (msg.type==='pong' && msg.ts===start){
+          const rtt = Date.now()-start;
+          setInfo('rtt',rtt);
+        }
+      });
+    },3000);
+  };
 
-  ui.fileInput.addEventListener('change',()=>{
-    const f=ui.fileInput.files[0];
-    if(!f) return;
-    fileMeta={name:f.name,size:f.size,type:f.type};
-    const url=`${location.origin}${location.pathname}?peer=${peer.id}`;
-    ui.linkSpan.textContent=url;
-    ui.shareLink.style.display='block';
+  /* ==============================================================
+   * 5️⃣  SENDER LOGIC (ACK + RETRANSMIT)
+   * ============================================================== */
+  const CHUNK_SIZE = 64*1024;                 // 64 KB
+  setInfo('chunkSize',`${CHUNK_SIZE/1024} KB`);
+
+  let fileMeta = null;                        // {name,size,type}
+  let fileReader = null;
+  let sending = false;
+  let sendSeq = 0;                            // número de bloque que estamos enviando
+  let ackedSeq = -1;                           // último bloque ACK‑eado por el receptor
+  let resendTimer = null;
+  const RESEND_TIMEOUT = 5000;                // 5 s sin ACK → retransmitir
+
+  // 1️⃣  Selección de archivo
+  ui.fileInput.addEventListener('change', () => {
+    const f = ui.fileInput.files[0];
+    if (!f) return;
+    fileMeta = {name:f.name,size:f.size,type:f.type};
+    const url = `${location.origin}${location.pathname}?peer=${peer.id}`;
+    ui.linkSpan.textContent = url;
+    ui.shareLink.style.display = 'block';
     setMsg(t().waiting);
   });
 
-  ui.copyBtn.addEventListener('click',async()=>{
-    try{
+  // 2️⃣  Copiar URL
+  ui.copyBtn.addEventListener('click', async () => {
+    try {
       await navigator.clipboard.writeText(ui.linkSpan.textContent);
-      ui.copyBtn.textContent=t().copied;
+      ui.copyBtn.textContent = t().copied;
       setTimeout(()=>ui.copyBtn.textContent=t().copy,2000);
-    }catch(e){console.error('Clipboard error',e);}
+    } catch (e) { console.error('clipboard error', e); }
   });
 
-  peer && peer.on('connection',conn=>{
+  // 3️⃣  Cuando llega una conexión entrante → iniciar envío
+  peer && peer.on('connection', conn => {
+    setInfo('remoteId', conn.peer);
+    setInfo('conn','open');
     setMsg(t().connected);
-    conn.on('open',()=>sendFile(conn,ui.fileInput.files[0]));
-    conn.on('error',e=>{console.error('Conn error',e);setMsg(t().error+e);});
+    startPing(conn);
+    conn.on('data', msg => {
+      if (msg.type==='ack') {
+        ackedSeq = msg.seq;
+        clearTimeout(resendTimer);
+        if (ackedSeq === Math.ceil(fileMeta.size/CHUNK_SIZE)-1){
+          // último bloque ACK‑eado → fin
+          setMsg(t().finished);
+          sending = false;
+          updateProgress(1);
+          conn.send({type:'end'});    // notificar fin formalmente
+          return;
+        }
+        // enviar siguiente bloque
+        sendNextChunk(conn);
+      }
+    });
+    conn.on('close',()=>{setInfo('conn','closed');});
+    conn.on('error',e=>{setMsg(t().error+e);setInfo('conn','error');});
+
+    // 4️⃣  Preparar envío
+    conn.on('open',()=>{ startSending(conn); });
   });
 
-  async function sendFile(conn,file){
+  // ---------------------------------------------------------------
+  async function startSending(conn){
+    sending = true;
+    sendSeq = 0;
+    ackedSeq = -1;
     setMsg(t().sending);
+    // 1️⃣  Metadatos
     conn.send({type:'meta',data:fileMeta});
     updateProgress(0);
-    const reader=file.stream().getReader();
-    let sent=0;
-    while(true){
-      const {done,value}=await reader.read();
-      if(done)break;
-      conn.send({type:'chunk',data:value.buffer});   // ArrayBuffer transferrable
-      sent+=value.byteLength;
-      updateProgress(sent/fileMeta.size);
-    }
-    conn.send({type:'end'});
-    setMsg(t().finished);
+    // 2️⃣  Stream del fichero (usamos FileReader con offset manual)
+    fileReader = ui.fileInput.files[0].stream().getReader();
+    sendNextChunk(conn);
   }
 
-  /* --------------------------------------------------------------
-   * 5️⃣  RECEIVER (idem que antes)
-   * ------------------------------------------------------------ */
-  const urlParams=new URLSearchParams(location.search);
-  const remoteId=urlParams.get('peer');
-  if(remoteId){
-    ui.sender.style.display='none';
-    ui.receiver.style.display='block';
+  // ---------------------------------------------------------------
+  async function sendNextChunk(conn){
+    // Si el último bloque ya fue ACK‑eado, esperamos el siguiente
+    if (sendSeq <= ackedSeq) { sendSeq = ackedSeq+1; }
+
+    const start = sendSeq*CHUNK_SIZE;
+    if (start >= fileMeta.size){ return; }              // todo enviado
+    const {done, value} = await fileReader.read();
+    if (done){ return; }                               // fin del stream (debería coincidir con size)
+
+    // enviar bloque
+    conn.send({type:'chunk',seq:sendSeq,data:value.buffer});
+    // actualizar barra
+    const prog = (start+value.byteLength)/fileMeta.size;
+    updateProgress(prog);
+    // esperar ACK con timeout
+    clearTimeout(resendTimer);
+    resendTimer = setTimeout(()=>{
+      console.warn('No ACK for seq',sendSeq,'— retransmiting');
+      setMsg(t().retrying);
+      // Re‑enviamos el mismo bloque (el reader ya avanzó, así que lo leemos de nuevo)
+      fileReader.releaseLock();                       // liberar para volver a leer
+      fileReader = ui.fileInput.files[0].slice(start, start+CHUNK_SIZE).stream().getReader();
+      sendNextChunk(conn);
+    }, RESEND_TIMEOUT);
+    sendSeq++;
+  }
+
+  /* ==============================================================
+   * 6️⃣  RECEIVER LOGIC (ACK + Resume)
+   * ============================================================== */
+  const urlParams = new URLSearchParams(location.search);
+  const remoteId = urlParams.get('peer');
+
+  if (remoteId){
+    // Ocultar zona de envío y mostrar zona de recepción
+    ui.sender.style.display = 'none';
+    ui.receiver.style.display = 'block';
     setMsg(t().waiting);
-    const conn=peer.connect(remoteId);
-    conn.on('open',()=>{setMsg(t().connected);});
-    conn.on('data',handleIncoming);
-    conn.on('error',e=>{console.error('Conn error',e);setMsg(t().error+e);});
+    const conn = peer.connect(remoteId);
+    setInfo('remoteId', remoteId);
+    setInfo('conn','connecting');
+
+    conn.on('open',()=>{ setInfo('conn','open'); startPing(conn); });
+    conn.on('error',e=>{ setMsg(t().error+e); setInfo('conn','error'); });
+    conn.on('close',()=>{ setInfo('conn','closed'); });
+
+    let recvMeta = null;
+    let receivedChunks = [];            // array de Uint8Array
+    let expectedSeq = 0;                // próximo bloque que esperamos
+
+    conn.on('data',msg=>{
+      if (msg.type==='meta'){
+        recvMeta = msg.data;
+        ui.recvName.textContent = recvMeta.name;
+        setMsg(t().receiving);
+        updateProgress(0);
+        expectedSeq = 0;
+        receivedChunks = [];
+        // enviamos ACK del meta (seq -1)
+        conn.send({type:'ack',seq:-1});
+      }
+      else if (msg.type==='chunk'){
+        // Si llega un bloque fuera de orden, lo ignoramos (peerJS asegura orden pero añadimos defensa)
+        if (msg.seq!==expectedSeq){
+          console.warn('Out‑of‑order chunk',msg.seq,'expected',expectedSeq);
+          // Pedimos re‑envío del último ACK (el emisor volverá a enviar el bloque solicitado)
+          conn.send({type:'ack',seq:expectedSeq-1});
+          return;
+        }
+        receivedChunks.push(new Uint8Array(msg.data));
+        const prog = ((msg.seq+1)*CHUNK_SIZE)/recvMeta.size;
+        updateProgress(Math.min(1,prog));
+        // ACK al emisor
+        conn.send({type:'ack',seq:msg.seq});
+        expectedSeq++;
+      }
+      else if (msg.type==='end'){
+        // Montar Blob y ofrecer descarga
+        const blob = new Blob(receivedChunks,{type:recvMeta.type});
+        const dlUrl = URL.createObjectURL(blob);
+        ui.downloadBtn.href = dlUrl;
+        ui.downloadBtn.download = recvMeta.name;
+        ui.downloadBtn.style.display = 'inline-block';
+        setMsg(t().finished);
+        updateProgress(1);
+        // habilitar botón de “no cerrar”
+        ui.downloadBtn.onclick = ()=>{
+          downloadFinished = true;
+          setTimeout(()=>URL.revokeObjectURL(dlUrl),30_000);
+        };
+      }
+      else if (msg.type==='ping'){
+        conn.send({type:'pong',ts:msg.ts});
+      }
+    });
   }
 
-  const chunks=[];
-  function handleIncoming(msg){
-    if(msg.type==='meta'){
-      fileMeta=msg.data;
-      ui.recvName.textContent=fileMeta.name;
-      setMsg(t().received);
-      updateProgress(0);
-    }else if(msg.type==='chunk'){
-      chunks.push(new Uint8Array(msg.data));
-      const received=chunks.reduce((s,c)=>s+c.byteLength,0);
-      updateProgress(received/fileMeta.size);
-    }else if(msg.type==='end'){
-      const blob=new Blob(chunks,{type:fileMeta.type});
-      const dl=URL.createObjectURL(blob);
-      ui.downloadBtn.href=dl;
-      ui.downloadBtn.download=fileMeta.name;
-      ui.downloadBtn.style.display='inline-block';
-      updateProgress(1);
-      setMsg(t().finished);
-      ui.downloadBtn.onclick=()=>{downloadFinished=true;setTimeout(()=>URL.revokeObjectURL(dl),30000);};
-    }
-  }
-
-  /* --------------------------------------------------------------
-   * 6️⃣  PREVENT CLOSE UNTIL DOWNLOAD FINISHED
-   * ------------------------------------------------------------ */
-  const preventClose=e=>{
-    if(!downloadFinished){
+  /* ==============================================================
+   * 7️⃣  PREVENT CLOSE UNTIL DOWNLOAD COMPLETED
+   * ============================================================== */
+  let downloadFinished = false;
+  window.addEventListener('beforeunload', e=>{
+    if (!downloadFinished){
       e.preventDefault();
-      e.returnValue=t().dontClose;
+      e.returnValue = t().dontClose;
       return t().dontClose;
     }
-  };
-  window.addEventListener('beforeunload',preventClose);
-  window.addEventListener('error',e=>{console.error('Global error',e.error);setMsg(t().error+e.message);});
+  });
+
+  /* ==============================================================
+   * 8️⃣  GLOBAL ERROR HANDLER
+   * ============================================================== */
+  window.addEventListener('error',e=>{
+    console.error('Global error',e.error);
+    setMsg(t().error+e.message);
+  });
+
 })();
 </script>
 </body>
