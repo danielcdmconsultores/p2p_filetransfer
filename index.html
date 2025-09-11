@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>File‑share robust with PeerJS (fallback + ACK)</title>
+<title>File‑share ultra‑robusto (PeerJS + fallback HTTP)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f5f5f5}
-  .card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:700px;margin:auto}
+  .card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:720px;margin:auto}
   h1{font-size:1.6rem;margin:0 0 .5rem}
   #info{font-size:.9rem;background:#fafafa;border:1px solid #ddd;padding:.5rem;margin-top:.5rem;border-radius:4px}
   #statusBar{margin-top:1rem;height:1.2rem;background:#e0e0e0;border-radius:4px;overflow:hidden}
@@ -25,7 +25,7 @@
 <div class="card">
   <h1 id="title">🔗 Compartir archivo / Share file</h1>
 
-  <!-- ---------- SEND SIDE ---------- -->
+  <!-- ---------- SEND ---------- -->
   <div id="sender">
     <input type="file" id="fileInput">
     <p id="shareLink" style="display:none;">
@@ -36,7 +36,7 @@
     <div id="msg"></div>
   </div>
 
-  <!-- ---------- RECEIVE SIDE ---------- -->
+  <!-- ---------- RECEIVE ---------- -->
   <div id="receiver" style="display:none;">
     <p><b id="recvLabel">Receiving:</b> <span id="recvName"></span></p>
     <a id="downloadBtn" style="display:none;" download>⬇️ Download / Descargar</a>
@@ -52,9 +52,10 @@
     <b>Peer ID:</b> <span id="myId">‑</span><br>
     <b>Remote ID:</b> <span id="remoteId">‑</span><br>
     <b>Server used:</b> <span id="serverUsed">‑</span><br>
-    <b>Connection:</b> <span id="connState">‑</span><br>
+    <b>Attempt #:</b> <span id="attemptNum">0</span><br>
+    <b>Conn. state:</b> <span id="connState">‑</span><br>
     <b>RTT (ping):</b> <span id="rtt">‑</span> ms<br>
-    <b>Attempts:</b> <span id="attempts">0</span><br>
+    <b>Chunk #:</b> <span id="chunkNum">‑</span><br>
     <b>Chunk size:</b> <span id="chunkSize">64 KB</span>
   </div>
 </div>
@@ -66,8 +67,8 @@
    * 0️⃣  MULTI‑LANGUAGE TEXTS
    * ============================================================== */
   const LANG = {
-    es:{title:'🔗 Compartir archivo',shareText:'Copia y pega esta URL en el navegador del receptor',copy:'📋 Copiar',copied:'✅ Copiado',waiting:'⏳ Esperando conexión…',connected:'✅ Conexión establecida',sending:'📤 Enviando archivo…',receiving:'📥 Recibiendo archivo…',download:'⬇️ Descargar',recv:'Recibiendo:',finished:'✅ Transferencia completada',dontClose:'⚠️ No cierres la ventana hasta que la descarga termine',error:'❗ Error: ',retrying:'🔄 Reintentando…',paused:'⏸️ Pausado'},
-    en:{title:'🔗 Share file',shareText:'Copy & paste this URL into the receiver’s browser',copy:'📋 Copy',copied:'✅ Copied',waiting:'⏳ Waiting for connection…',connected:'✅ Connected',sending:'📤 Sending file…',receiving:'📥 Receiving file…',download:'⬇️ Download',recv:'Receiving:',finished:'✅ Transfer complete',dontClose:'⚠️ Do not close the window until the download finishes',error:'❗ Error: ',retrying:'🔄 Retrying…',paused:'⏸️ Paused'}
+    es:{title:'🔗 Compartir archivo',shareText:'Copia y pega esta URL en el navegador del receptor',copy:'📋 Copiar',copied:'✅ Copiado',waiting:'⏳ Esperando conexión…',connected:'✅ Conexión establecida',sending:'📤 Enviando archivo…',receiving:'📥 Recibiendo archivo…',download:'⬇️ Descargar',recv:'Recibiendo:',finished:'✅ Transferencia completada',dontClose:'⚠️ No cierres la ventana hasta que la descarga termine',error:'❗ Error: ',retrying:'🔄 Reintentando…',fallback:'🔁 Usando método HTTP de reserva',fallbackDone:'✅ Archivo subido, espera la URL…',fallbackFail:'❌ Fallback HTTP falló'},
+    en:{title:'🔗 Share file',shareText:'Copy & paste this URL into the receiver’s browser',copy:'📋 Copy',copied:'✅ Copied',waiting:'⏳ Waiting for connection…',connected:'✅ Connected',sending:'📤 Sending file…',receiving:'📥 Receiving file…',download:'⬇️ Download',recv:'Receiving:',finished:'✅ Transfer complete',dontClose:'⚠️ Do not close the window until the download finishes',error:'❗ Error: ',retrying:'🔄 Retrying…',fallback:'🔁 Using HTTP fallback method',fallbackDone:'✅ File uploaded, waiting for URL…',fallbackFail:'❌ HTTP fallback failed'}
   };
   let curLang='es';
   const t=()=>LANG[curLang];
@@ -93,9 +94,10 @@
       myId:      document.getElementById('myId'),
       remoteId:  document.getElementById('remoteId'),
       server:    document.getElementById('serverUsed'),
+      attempts:  document.getElementById('attemptNum'),
       conn:      document.getElementById('connState'),
       rtt:       document.getElementById('rtt'),
-      attempts:  document.getElementById('attempts'),
+      chunkNum:  document.getElementById('chunkNum'),
       chunkSize: document.getElementById('chunkSize')
     }
   };
@@ -104,75 +106,82 @@
   const updateProgress = r=>{const p=Math.min(100,Math.round(r*100));ui.statusBar.style.width=p+'%';if(p===100)ui.statusBar.style.background='#2196F3';};
 
   /* ==============================================================
-   * 2️⃣  CONFIGURACIÓN DE SERVIDORES Y ICE (STUN/TURN)
+   * 2️⃣  SERVIDORES DE SEÑALIZACIÓN + ICE
    * ============================================================== */
-  const signalingServers = [
+  const SIGNAL_SERVERS = [
     {host:'0.peerjs.com', secure:true, port:443},
     {host:'peerjs.com',    secure:true, port:443},
     {host:'peerjs-server.herokuapp.com', secure:true, port:443},
     {host:'peerjscloud.com', secure:true, port:443}
   ];
-  const iceServers = [
+  const ICE_SERVERS = [
     {urls:'stun:stun.l.google.com:19302'},
-    // XirSys free TURN (no‑auth, limited usage) – works en la mayoría de firewalls
-    {urls:'turn:global.turn.twilio.com:3478?transport=udp',username:'free',credential:'free'},
-    {urls:'turn:global.turn.twilio.com:3478?transport=tcp',username:'free',credential:'free'}
+    {urls:'turn:global.turn.twilio.com:3478?transport=udp',username:'free',credential:'free'}
   ];
 
-  /* ==============================================================
-   * 3️⃣  CREAR PEER CON FALLBACK Y RETRIES
-   * ============================================================== */
-  const MAX_CONN_ATTEMPTS = 5;
-  let connAttempts = 0;
-  let peer = null;
-  let chosenServer = null;
+  const MAX_TIMEOUT_MS = 8000;            // tiempo máximo esperando una conexión antes de cambiar de servidor
+  const MAX_RECONNECT_ATTEMPTS = 3;       // re‑intentos de reconexión en caso de caida del canal
 
-  const createPeer = () => {
-    if (connAttempts >= signalingServers.length) {
-      setMsg(t().error+'All signaling servers failed.');
-      return;
-    }
-    const cfg = signalingServers[connAttempts];
-    chosenServer = cfg.host;
-    setInfo('server',chosenServer);
+  let peer = null;
+  let serverIdx = 0;
+  let connection = null;
+  let isSender = false;                  // true si la página abrió como “emisor”
+  let fileMeta = null;
+  let fileReader = null;
+  let sending = false;
+  let sendSeq = 0, ackedSeq = -1;
+  let resendTimer = null;
+  const RESEND_TIMEOUT = 5000;
+  let attempts = 0;                      // número de re‑intentos de reconexión (máximo MAX_RECONNECT_ATTEMPTS)
+
+  /* ==============================================================
+   * 3️⃣  FUNCIÓN DE CREACIÓN DE PEER CON TIMEOUT
+   * ============================================================== */
+  const createPeerWithTimeout = (srvIdx, onReady) => {
+    const srv = SIGNAL_SERVERS[srvIdx];
+    setInfo('server',srv.host);
+    setInfo('attempts',srvIdx+1);
     try {
-      peer = new Peer(null, {
-        host: cfg.host,
-        secure: cfg.secure,
-        port: cfg.port,
-        config: {iceServers}
+      const p = new Peer(null,{host:srv.host,secure:srv.secure,port:srv.port,config:{iceServers:ICE_SERVERS}});
+      const timer = setTimeout(()=>{
+        console.warn('Timeout waiting for open on',srv.host);
+        p.destroy();                 // liberamos recursos
+        if (srvIdx+1 < SIGNAL_SERVERS.length) createPeerWithTimeout(srvIdx+1,onReady);
+        else fallbackHttp();         // ¡todos los servidores fallaron!
+      },MAX_TIMEOUT_MS);
+      p.on('open', id => {
+        clearTimeout(timer);
+        peer = p;
+        setInfo('myId',id);
+        console.log('Peer opened on',srv.host,'id',id);
+        onReady();
       });
-      peer.on('open', id => {
-        setInfo('myId', id);
-        console.log('Peer opened with id', id, 'via', chosenServer);
+      p.on('error', err => {
+        clearTimeout(timer);
+        console.warn('Peer error on',srv.host,err);
+        p.destroy();
+        if (srvIdx+1 < SIGNAL_SERVERS.length) createPeerWithTimeout(srvIdx+1,onReady);
+        else fallbackHttp();
       });
-      peer.on('error', err => {
-        console.warn('Peer error on',chosenServer, err);
-        connAttempts++;
-        setInfo('attempts', connAttempts);
-        createPeer();               // retry con siguiente servidor
-      });
-    } catch (e) {
-      console.error('Exception creating Peer', e);
-      connAttempts++;
-      setInfo('attempts', connAttempts);
-      createPeer();
+    } catch(e){
+      console.error('Exception creating Peer',e);
+      if (srvIdx+1 < SIGNAL_SERVERS.length) createPeerWithTimeout(srvIdx+1,onReady);
+      else fallbackHttp();
     }
   };
-  createPeer();
 
   /* ==============================================================
-   * 4️⃣  MÉTRICAS DE RED (RTT) – ping usando DataChannel “heartbeat”
+   * 4️⃣  MÉTRICAS DE RED (PING)
    * ============================================================== */
-  let pingInterval = null;
-  const startPing = (conn) => {
-    if (pingInterval) clearInterval(pingInterval);
-    pingInterval = setInterval(()=>{
-      const start = Date.now();
-      conn.send({type:'ping',ts:start});
+  let pingTimer = null;
+  const startPing = conn => {
+    if (pingTimer) clearInterval(pingTimer);
+    pingTimer = setInterval(()=>{
+      const ts = Date.now();
+      conn.send({type:'ping',ts});
       conn.once('data',msg=>{
-        if (msg.type==='pong' && msg.ts===start){
-          const rtt = Date.now()-start;
+        if (msg.type==='pong' && msg.ts===ts){
+          const rtt = Date.now()-ts;
           setInfo('rtt',rtt);
         }
       });
@@ -180,70 +189,42 @@
   };
 
   /* ==============================================================
-   * 5️⃣  SENDER LOGIC (ACK + RETRANSMIT)
+   * 5️⃣  EMISOR – Preparación y envío con ACK + re‑intentos
    * ============================================================== */
-  const CHUNK_SIZE = 64*1024;                 // 64 KB
-  setInfo('chunkSize',`${CHUNK_SIZE/1024} KB`);
-
-  let fileMeta = null;                        // {name,size,type}
-  let fileReader = null;
-  let sending = false;
-  let sendSeq = 0;                            // número de bloque que estamos enviando
-  let ackedSeq = -1;                           // último bloque ACK‑eado por el receptor
-  let resendTimer = null;
-  const RESEND_TIMEOUT = 5000;                // 5 s sin ACK → retransmitir
-
-  // 1️⃣  Selección de archivo
-  ui.fileInput.addEventListener('change', () => {
+  ui.fileInput.addEventListener('change',()=>{
     const f = ui.fileInput.files[0];
     if (!f) return;
     fileMeta = {name:f.name,size:f.size,type:f.type};
     const url = `${location.origin}${location.pathname}?peer=${peer.id}`;
     ui.linkSpan.textContent = url;
-    ui.shareLink.style.display = 'block';
+    ui.shareLink.style.display='block';
     setMsg(t().waiting);
+    isSender = true;
   });
 
-  // 2️⃣  Copiar URL
-  ui.copyBtn.addEventListener('click', async () => {
-    try {
+  ui.copyBtn.addEventListener('click',async()=>{
+    try{
       await navigator.clipboard.writeText(ui.linkSpan.textContent);
       ui.copyBtn.textContent = t().copied;
-      setTimeout(()=>ui.copyBtn.textContent=t().copy,2000);
-    } catch (e) { console.error('clipboard error', e); }
+      setTimeout(()=>ui.copyBtn.textContent=t().copy,1500);
+    }catch(e){ console.error('clipboard error',e); }
   });
 
-  // 3️⃣  Cuando llega una conexión entrante → iniciar envío
-  peer && peer.on('connection', conn => {
-    setInfo('remoteId', conn.peer);
+  // Cuando llega una conexión entrante (emisor)
+  const handleIncomingConn = conn => {
+    connection = conn;
+    setInfo('remoteId',conn.peer);
     setInfo('conn','open');
     setMsg(t().connected);
     startPing(conn);
-    conn.on('data', msg => {
-      if (msg.type==='ack') {
-        ackedSeq = msg.seq;
-        clearTimeout(resendTimer);
-        if (ackedSeq === Math.ceil(fileMeta.size/CHUNK_SIZE)-1){
-          // último bloque ACK‑eado → fin
-          setMsg(t().finished);
-          sending = false;
-          updateProgress(1);
-          conn.send({type:'end'});    // notificar fin formalmente
-          return;
-        }
-        // enviar siguiente bloque
-        sendNextChunk(conn);
-      }
-    });
-    conn.on('close',()=>{setInfo('conn','closed');});
-    conn.on('error',e=>{setMsg(t().error+e);setInfo('conn','error');});
+    conn.on('data',msg=>{ if (msg.type==='ack') processAck(msg); });
+    conn.on('close',()=>{ setInfo('conn','closed'); tryReconnect(conn); });
+    conn.on('error',e=>{ setMsg(t().error+e); setInfo('conn','error'); tryReconnect(conn); });
+    conn.on('open',()=>{ startSend(conn); });
+  };
 
-    // 4️⃣  Preparar envío
-    conn.on('open',()=>{ startSending(conn); });
-  });
-
-  // ---------------------------------------------------------------
-  async function startSending(conn){
+  const startSend = async conn => {
+    if (!fileMeta) return;
     sending = true;
     sendSeq = 0;
     ackedSeq = -1;
@@ -251,129 +232,192 @@
     // 1️⃣  Metadatos
     conn.send({type:'meta',data:fileMeta});
     updateProgress(0);
-    // 2️⃣  Stream del fichero (usamos FileReader con offset manual)
+    // 2️⃣  Stream del archivo
     fileReader = ui.fileInput.files[0].stream().getReader();
     sendNextChunk(conn);
-  }
+  };
 
-  // ---------------------------------------------------------------
-  async function sendNextChunk(conn){
-    // Si el último bloque ya fue ACK‑eado, esperamos el siguiente
-    if (sendSeq <= ackedSeq) { sendSeq = ackedSeq+1; }
-
-    const start = sendSeq*CHUNK_SIZE;
-    if (start >= fileMeta.size){ return; }              // todo enviado
+  const sendNextChunk = async conn => {
+    // Si el último bloque ya está ack‑eado, pasamos al siguiente
+    if (sendSeq <= ackedSeq) sendSeq = ackedSeq + 1;
+    const start = sendSeq * 64 * 1024;
+    if (start >= fileMeta.size){ return; } // todo enviado
     const {done, value} = await fileReader.read();
-    if (done){ return; }                               // fin del stream (debería coincidir con size)
-
-    // enviar bloque
+    if (done){ return; }
+    // envío
     conn.send({type:'chunk',seq:sendSeq,data:value.buffer});
-    // actualizar barra
-    const prog = (start+value.byteLength)/fileMeta.size;
-    updateProgress(prog);
-    // esperar ACK con timeout
+    setInfo('chunkNum',sendSeq);
+    updateProgress((start+value.byteLength)/fileMeta.size);
+    // timeout ACK
     clearTimeout(resendTimer);
     resendTimer = setTimeout(()=>{
-      console.warn('No ACK for seq',sendSeq,'— retransmiting');
+      console.warn('No ACK for seq',sendSeq,'→ re‑envío');
       setMsg(t().retrying);
-      // Re‑enviamos el mismo bloque (el reader ya avanzó, así que lo leemos de nuevo)
-      fileReader.releaseLock();                       // liberar para volver a leer
-      fileReader = ui.fileInput.files[0].slice(start, start+CHUNK_SIZE).stream().getReader();
+      // volver a leer el mismo bloque (slice manual)
+      fileReader.releaseLock();
+      fileReader = ui.fileInput.files[0].slice(start,start+64*1024).stream().getReader();
       sendNextChunk(conn);
-    }, RESEND_TIMEOUT);
+    },RESEND_TIMEOUT);
     sendSeq++;
-  }
+  };
+
+  const processAck = msg => {
+    ackedSeq = msg.seq;
+    clearTimeout(resendTimer);
+    if (ackedSeq === Math.ceil(fileMeta.size/64/1024)-1){
+      setMsg(t().finished);
+      sending = false;
+      updateProgress(1);
+      connection.send({type:'end'});
+      return;
+    }
+    sendNextChunk(connection);
+  };
+
+  const tryReconnect = oldConn => {
+    // Si aún hay bloques por enviar, intentamos reconectar (máximo 3 re‑intentos)
+    if (sending && attempts < MAX_RECONNECT_ATTEMPTS){
+      attempts++;
+      setMsg(t().retrying+' ('+attempts+'/'+MAX_RECONNECT_ATTEMPTS+')');
+      // destruimos el Peer y volvemos a crear uno sobre el **mismo** servidor
+      const currentSrvIdx = serverIdx;          // guardamos índice del servidor activo
+      if (peer) peer.destroy();
+      setTimeout(()=>createPeerWithTimeout(currentSrvIdx,()=>{ // re‑creamos Peer
+        // esperamos que el receptor vuelva a conectarse (el receptor mantendrá su Peer abierto)
+        peer.on('connection',c=>{ handleIncomingConn(c); });
+      }),2000);
+    }else{
+      setMsg(t().error+'No se pudo restablecer la conexión.');
+    }
+  };
 
   /* ==============================================================
-   * 6️⃣  RECEIVER LOGIC (ACK + Resume)
+   * 6️⃣  RECEPTOR – Manejo de bloques y ACK
    * ============================================================== */
   const urlParams = new URLSearchParams(location.search);
   const remoteId = urlParams.get('peer');
 
   if (remoteId){
-    // Ocultar zona de envío y mostrar zona de recepción
-    ui.sender.style.display = 'none';
-    ui.receiver.style.display = 'block';
+    // modo receptor
+    ui.sender.style.display='none';
+    ui.receiver.style.display='block';
     setMsg(t().waiting);
-    const conn = peer.connect(remoteId);
-    setInfo('remoteId', remoteId);
-    setInfo('conn','connecting');
+    const onPeerReady = ()=>{
+      const conn = peer.connect(remoteId);
+      connection = conn;
+      setInfo('remoteId',remoteId);
+      setInfo('conn','connecting');
+      conn.on('open',()=>{ setInfo('conn','open'); startPing(conn); });
+      conn.on('error',e=>{ setMsg(t().error+e); setInfo('conn','error'); });
+      conn.on('close',()=>{ setInfo('conn','closed'); });
+      let recvMeta=null;
+      let receivedChunks=[];
+      let expectedSeq=0;
 
-    conn.on('open',()=>{ setInfo('conn','open'); startPing(conn); });
-    conn.on('error',e=>{ setMsg(t().error+e); setInfo('conn','error'); });
-    conn.on('close',()=>{ setInfo('conn','closed'); });
-
-    let recvMeta = null;
-    let receivedChunks = [];            // array de Uint8Array
-    let expectedSeq = 0;                // próximo bloque que esperamos
-
-    conn.on('data',msg=>{
-      if (msg.type==='meta'){
-        recvMeta = msg.data;
-        ui.recvName.textContent = recvMeta.name;
-        setMsg(t().receiving);
-        updateProgress(0);
-        expectedSeq = 0;
-        receivedChunks = [];
-        // enviamos ACK del meta (seq -1)
-        conn.send({type:'ack',seq:-1});
-      }
-      else if (msg.type==='chunk'){
-        // Si llega un bloque fuera de orden, lo ignoramos (peerJS asegura orden pero añadimos defensa)
-        if (msg.seq!==expectedSeq){
-          console.warn('Out‑of‑order chunk',msg.seq,'expected',expectedSeq);
-          // Pedimos re‑envío del último ACK (el emisor volverá a enviar el bloque solicitado)
-          conn.send({type:'ack',seq:expectedSeq-1});
-          return;
+      conn.on('data',msg=>{
+        if (msg.type==='meta'){
+          recvMeta=msg.data;
+          ui.recvName.textContent=recvMeta.name;
+          setMsg(t().receiving);
+          updateProgress(0);
+          expectedSeq=0;
+          receivedChunks=[];
+          conn.send({type:'ack',seq:-1});
+        }else if (msg.type==='chunk'){
+          if (msg.seq!==expectedSeq){
+            console.warn('Chunk out of order',msg.seq,'expected',expectedSeq);
+            conn.send({type:'ack',seq:expectedSeq-1});
+            return;
+          }
+          receivedChunks.push(new Uint8Array(msg.data));
+          setInfo('chunkNum',msg.seq);
+          updateProgress(((msg.seq+1)*64*1024)/recvMeta.size);
+          conn.send({type:'ack',seq:msg.seq});
+          expectedSeq++;
+        }else if (msg.type==='end'){
+          const blob = new Blob(receivedChunks,{type:recvMeta.type});
+          const dl = URL.createObjectURL(blob);
+          ui.downloadBtn.href = dl;
+          ui.downloadBtn.download = recvMeta.name;
+          ui.downloadBtn.style.display='inline-block';
+          setMsg(t().finished);
+          updateProgress(1);
+          ui.downloadBtn.onclick=()=>{ downloadFinished=true; setTimeout(()=>URL.revokeObjectURL(dl),30_000); };
+        }else if (msg.type==='ping'){
+          conn.send({type:'pong',ts:msg.ts});
         }
-        receivedChunks.push(new Uint8Array(msg.data));
-        const prog = ((msg.seq+1)*CHUNK_SIZE)/recvMeta.size;
-        updateProgress(Math.min(1,prog));
-        // ACK al emisor
-        conn.send({type:'ack',seq:msg.seq});
-        expectedSeq++;
-      }
-      else if (msg.type==='end'){
-        // Montar Blob y ofrecer descarga
-        const blob = new Blob(receivedChunks,{type:recvMeta.type});
-        const dlUrl = URL.createObjectURL(blob);
-        ui.downloadBtn.href = dlUrl;
-        ui.downloadBtn.download = recvMeta.name;
-        ui.downloadBtn.style.display = 'inline-block';
-        setMsg(t().finished);
-        updateProgress(1);
-        // habilitar botón de “no cerrar”
-        ui.downloadBtn.onclick = ()=>{
-          downloadFinished = true;
-          setTimeout(()=>URL.revokeObjectURL(dlUrl),30_000);
-        };
-      }
-      else if (msg.type==='ping'){
-        conn.send({type:'pong',ts:msg.ts});
-      }
-    });
+      });
+    };
+    createPeerWithTimeout(0,onPeerReady);
   }
 
   /* ==============================================================
-   * 7️⃣  PREVENT CLOSE UNTIL DOWNLOAD COMPLETED
+   * 7️⃣  MÉTODO HTTP FALLBACK (file.io) – última opción
+   * ============================================================== */
+  const fallbackHttp = async () => {
+    setMsg(t().fallback);
+    // Si el usuario es emisor y ya ha seleccionado un archivo, lo subimos a file.io
+    if (ui.fileInput.files.length===0){
+      setMsg(t().error+'No hay archivo para subir mediante fallback.');
+      return;
+    }
+    const file = ui.fileInput.files[0];
+    const form = new FormData();
+    form.append('file',file);
+    try{
+      const resp = await fetch('https://file.io/?expires=1w', {method:'POST',body:form});
+      const data = await resp.json();
+      if (!data.success){
+        throw new Error('file.io returned error');
+      }
+      const dlUrl = data.link;               // URL pública de descarga
+      // Generamos URL de “parámetro” que contenga la URL de file.io
+      const finalUrl = `${location.origin}${location.pathname}?fallback=${encodeURIComponent(dlUrl)}`;
+      ui.linkSpan.textContent = finalUrl;
+      ui.shareLink.style.display = 'block';
+      setInfo('server','HTTP fallback (file.io)');
+      setMsg(t().fallbackDone);
+    }catch(e){
+      console.error(e);
+      setMsg(t().fallbackFail);
+    }
+  };
+
+  /* ==============================================================
+   * 8️⃣  RECEPTOR cuando llega via fallback=URL
+   * ============================================================== */
+  const fallbackUrl = urlParams.get('fallback');
+  if (fallbackUrl && !remoteId){
+    // receptor en modo fallback
+    ui.sender.style.display='none';
+    ui.receiver.style.display='block';
+    setMsg(t().waiting);
+    // Sólo mostramos botón de descarga directa
+    const dl = decodeURIComponent(fallbackUrl);
+    ui.downloadBtn.href = dl;
+    ui.downloadBtn.download = '';          // el nombre lo decidirá el navegador
+    ui.downloadBtn.style.display = 'inline-block';
+    ui.downloadBtn.textContent = t().download;
+    setMsg(t().finished);
+  }
+
+  /* ==============================================================
+   * 9️⃣  PREVENT CLOSE
    * ============================================================== */
   let downloadFinished = false;
-  window.addEventListener('beforeunload', e=>{
+  window.addEventListener('beforeunload',e=>{
     if (!downloadFinished){
-      e.preventDefault();
-      e.returnValue = t().dontClose;
-      return t().dontClose;
+      e.preventDefault(); e.returnValue = t().dontClose; return t().dontClose;
     }
   });
 
   /* ==============================================================
-   * 8️⃣  GLOBAL ERROR HANDLER
+   * 10️⃣  GLOBAL ERROR HANDLER
    * ============================================================== */
   window.addEventListener('error',e=>{
     console.error('Global error',e.error);
     setMsg(t().error+e.message);
   });
-
 })();
 </script>
 </body>
