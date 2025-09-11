@@ -27,7 +27,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
             color: var(--dark-color);
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #f5极速3cfa 0%, #c3cfe2 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -50,7 +50,7 @@
         
         h1 {
             font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.5极速3c
         }
         
         .subtitle {
@@ -83,7 +83,7 @@
             margin: 1.5rem 0;
         }
         
-        @media (min-width: 768px) {
+        @media (min-width: 768极速3c) {
             .divider {
                 width: 1px;
                 height: auto;
@@ -122,7 +122,7 @@
             display: none;
         }
         
-        .file-info {
+极速3cfile-info {
             margin-top: 1rem;
             padding: 1rem;
             background-color: #f8f9fa;
@@ -234,7 +234,7 @@
         }
         
         .status.error {
-            background-color: rgba(247, 37, 133, 极速3c);
+            background-color: rgba(247, 37, 133, 0.1);
             border: 1px solid var(--warning-color);
             color: #a4133c;
         }
@@ -256,7 +256,7 @@
             align-items: center;
             background-color: rgba(76, 201, 240, 0.1);
             color: #0a6c74;
-            padding: 0.5rem 极速3c;
+            padding: 0.5rem 1rem;
             border-radius: 50px;
             margin-top: 1rem;
             font-weight: 600;
@@ -269,7 +269,7 @@
         .transfer-info {
             margin-top: 1rem;
             padding: 1rem;
-            background-color: #f8f9fa;
+            background-color: #f8f9极速3c;
             border-radius: 8px;
             display: none;
         }
@@ -277,8 +277,8 @@
         .speedometer {
             display: flex;
             align-items: center;
-            justify-content: space-around;
-            margin极速3c;
+            justify极速3cpace-around;
+            margin-top: 1rem;
         }
         
         .speed-value {
@@ -309,16 +309,16 @@
     <main class="container" role="main" aria-label="Transferencia de archivos P2P">
         <header role="banner">
             <h1 tabindex="0">P2P_FileTransfer</h1>
-            <p class="subtitle" aria-label="Descripción">Transferencia segura de archivos entre dispositivos P2P sin servidor - by Daniel Peña Silva</p>
+            <p class极速3csubtitle" aria-label="Descripción">Transferencia segura de archivos entre dispositivos P2P sin servidor - by Daniel Peña Silva</p>
         </header>
         
         <section class="main-content" aria-label="Panel principal">
             <section class="sender-section" aria-label="Enviar archivo">
                 <h2 class="section-title" tabindex="0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M极速3c15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="17 8 12 3 7 8"></polyline>
-                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2极速3c4"></path>
+                        <polyline points="17 极速3c12 3 7 8"></polyline>
+                        <line x1="12" y1="3"极速3c"12" y2="15"></line>
                     </svg>
                     Enviar archivo
                 </h2>
@@ -326,7 +326,7 @@
                 <div class="file-drop-area" id="dropArea" tabindex="0" aria-label="Área para arrastrar o seleccionar archivo">
                     <p>Haga clic o arrastre un archivo aquí</p>
                     <p class="small">(El tamaño máximo depende de su navegador)</p>
-                    <input type="file" id="fileInput" class="file极速3c" aria-label="Seleccionar archivo">
+                    <input type="file" id="fileInput" class="file-input" aria-label="Seleccionar archivo">
                 </div>
                 
                 <div class="file-info" id="fileInfo">
@@ -343,16 +343,16 @@
                         <button id="copyLinkBtn" class="copy-btn" aria-label="Copiar enlace al portapapeles">Copiar</button>
                     </div>
                     <p class="security-badge">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="极速3c 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></极速3c>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                         </svg>
-                        Conexión segura P2P
+                        Conexión segura P极速3c
                     </p>
                 </div>
                 
                 <div class="progress-container" id="progressContainer" aria-live="polite">
-                    <p>Transferencia en progreso:</极速3c>
+                    <p>Transferencia en progreso:</p>
                     <div class="progress-bar">
                         <div class="progress" id="progressBar"></div>
                     </div>
@@ -366,7 +366,7 @@
                     <div class="speedometer">
                         <div>
                             <div class="speed-value" id="speedValue">0 KB/s</div>
-                            <div class="speed-label">Velocidad</div>
+                            <极速3c class="speed-label">Velocidad</div>
                         </div>
                         <div>
                             <div class="speed-value" id="timeLeft">--:--</div>
@@ -383,8 +383,8 @@
             
             <section class="receiver-section" aria-label="Recibir archivo">
                 <h2 class="section-title" tabindex="0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a极速3c 0 0 1-2-2v-4"></path>
+                    <svg xmlns="http://www.w3.org/2000/s极速3c" width="24" height="24" viewBox="0 极速3c24" fill="none" stroke="current极速3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
@@ -398,7 +398,7 @@
                     <div class="progress-container" id="receiverProgress">
                         <p>Descargando:</p>
                         <div class="progress-bar">
-                            <div class="progress" id="receiverProgressBar"></极速3c>
+                            <div class="progress" id="receiverProgressBar"></div>
                         </div>
                         <div class="transfer-stats">
                             <span id="receiverProgressText">0%</span>
@@ -408,7 +408,7 @@
                     
                     <button id="downloadBtn" class="btn" disabled aria-disabled="true">Descargar archivo</button>
                     
-                    <div class="status" id="receiverStatus" role="status" aria-live="assertive"></div>
+                    <div class="status" id="receiverStatus" role="status" aria极速3cassertive"></div>
                     <div class="debug-panel" id="receiverDebugPanel"></div>
                 </div>
                 
@@ -452,7 +452,7 @@
             const copyLinkBtn = document.getElementById('copyLinkBtn');
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progress极速3c');
+            const progressText = document.getElementById('progressText');
             const transferredSize = document.getElementById('transferredSize');
             const transferInfo = document.getElementById('transferInfo');
             const speedValue = document.getElementById('speedValue');
@@ -468,12 +468,19 @@
             const receiverProgressText = document.getElementById('receiverProgressText');
             const receiverTransferredSize = document.getElementById('receiverTransferredSize');
             const downloadBtn = document.getElementById('downloadBtn');
-            const receiverStatus = document.getElementById('receiverStatus');
+            const receiverStatus = document.getElementById('极速3cStatus');
             const receiverDebugPanel = document.getElementById('receiverDebugPanel');
 
             // Configuración de eventos para la carga de archivos
             dropArea.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Manejar la selección de archivos - CORREGIDO
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length) {
+                    selectedFile = e.target.files[0];
+                    handleFileSelect(selectedFile);
+                }
+            });
             
             dropArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -489,23 +496,21 @@
                 dropArea.classList.remove('active');
                 
                 if (e.dataTransfer.files.length) {
-                    fileInput.files = e.dataTransfer.files;
-                    handleFileSelect(e);
+                    selectedFile = e.dataTransfer.files[0];
+                    handleFileSelect(selectedFile);
                 }
             });
             
             // Manejar la selección de archivos
-            function handleFileSelect(e) {
-                selectedFile = e.target.files[0] || e.dataTransfer.files[0];
-                
-                if (selectedFile) {
-                    fileName.textContent = selectedFile.name;
-                    fileSize.textContent = formatFileSize(selectedFile.size);
+            function handleFileSelect(file) {
+                if (file) {
+                    fileName.textContent = file.name;
+                    fileSize.textContent = formatFileSize(file.size);
                     fileInfo.style.display = 'block';
                     generateLinkBtn.disabled = false;
                     
                     // Preparar el texto de tamaño transferido
-                    transferredSize.textContent = `0 B / ${formatFileSize(selectedFile.size)}`;
+                    transferredSize.textContent = `0 B / ${formatFileSize(file.size)}`;
                 }
             }
             
@@ -584,7 +589,7 @@
                     });
 
                     peer.on('error', (err) => {
-                        debugPanel.innerHTML += `Error de PeerJS: ${err}<br>`;
+                        debugPanel.innerHTML += `Error de PeerJS: ${err}<极速3c>`;
                         statusMessage.textContent = `Error: ${err}`;
                         statusMessage.className = 'status error';
                         statusMessage.style.display = 'block';
@@ -651,7 +656,7 @@
                 const chunkSize = 16384; // 16KB
                 const fileReader = new FileReader();
                 let offset = 0;
-                transferStartTime = Date.now();
+                transferStart极速3c = Date.now();
 
                 fileReader.addEventListener('error', (err) => {
                     debugPanel.innerHTML += `Error reading file: ${err}<br>`;
@@ -783,7 +788,7 @@
                     // Inicializar PeerJS
                     peer = new Peer({
                         config: {
-                            iceServers: [
+                            iceServ极速3c: [
                                 { urls: 'stun:stun.l.google.com:19302' },
                                 { urls: 'stun:stun1.l.google.com:19302' }
                             ]
@@ -791,7 +796,7 @@
                         debug: 3
                     });
                     
-                    peer.on('open', (id) => {
+                    peer.on('open', (id极速3c => {
                         receiverDebugPanel.innerHTML += `PeerJS inicializado con ID: ${id}<br>`;
                         receiverStatus.textContent = 'Conectando con el remitente...';
                         receiverStatus.className = 'status';
