@@ -73,6 +73,7 @@
         .sender-section, .receiver-section {
             flex: 1;
             padding: 1.5rem;
+            min-height: 500px;
         }
         
         .divider {
@@ -233,7 +234,7 @@
         }
         
         .status.error {
-            background-color: rgba(247, 37, 133, 0.1);
+            background-color: rgba(247, 37, 133, 极速3c);
             border: 1px solid var(--warning-color);
             color: #a4133c;
         }
@@ -255,7 +256,7 @@
             align-items: center;
             background-color: rgba(76, 201, 240, 0.1);
             color: #0a6c74;
-            padding: 0.5rem 1rem;
+            padding: 0.5rem 极速3c;
             border-radius: 50px;
             margin-top: 1rem;
             font-weight: 600;
@@ -277,7 +278,7 @@
             display: flex;
             align-items: center;
             justify-content: space-around;
-            margin-top: 1rem;
+            margin极速3c;
         }
         
         .speed-value {
@@ -291,23 +292,15 @@
             color: #666;
         }
 
-        .ice-config {
+        .debug-panel {
             margin-top: 1rem;
             padding: 1rem;
-            background-color: #f0f8ff;
+            background-color: #f0f0f0;
             border-radius: 8px;
-            display: none;
-        }
-
-        .ice-config h3 {
-            margin-bottom: 0.5rem;
-            color: var(--secondary-color);
-        }
-
-        .debug-info {
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            color: #666;
+            font-family: monospace;
+            font-size: 0.9rem;
+            max-height: 200px;
+            overflow-y: auto;
             display: none;
         }
     </style>
@@ -323,7 +316,7 @@
             <section class="sender-section" aria-label="Enviar archivo">
                 <h2 class="section-title" tabindex="0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <path d="M极速3c15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="17 8 12 3 7 8"></polyline>
                         <line x1="12" y1="3" x2="12" y2="15"></line>
                     </svg>
@@ -333,7 +326,7 @@
                 <div class="file-drop-area" id="dropArea" tabindex="0" aria-label="Área para arrastrar o seleccionar archivo">
                     <p>Haga clic o arrastre un archivo aquí</p>
                     <p class="small">(El tamaño máximo depende de su navegador)</p>
-                    <input type="file" id="fileInput" class="file-input" aria-label="Seleccionar archivo">
+                    <input type="file" id="fileInput" class="file极速3c" aria-label="Seleccionar archivo">
                 </div>
                 
                 <div class="file-info" id="fileInfo">
@@ -350,22 +343,16 @@
                         <button id="copyLinkBtn" class="copy-btn" aria-label="Copiar enlace al portapapeles">Copiar</button>
                     </div>
                     <p class="security-badge">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="极速3c 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></极速3c>
                         </svg>
                         Conexión segura P2P
                     </p>
                 </div>
                 
-                <div class="ice-config" id="iceConfig">
-                    <h3>Configuración de conexión</h3>
-                    <p id="iceStatus">Estableciendo conexión P2P...</p>
-                    <div class="debug-info" id="debugInfo"></div>
-                </div>
-                
                 <div class="progress-container" id="progressContainer" aria-live="polite">
-                    <p>Transferencia en progreso:</p>
+                    <p>Transferencia en progreso:</极速3c>
                     <div class="progress-bar">
                         <div class="progress" id="progressBar"></div>
                     </div>
@@ -389,6 +376,7 @@
                 </div>
                 
                 <div class="status" id="statusMessage" role="status" aria-live="assertive"></div>
+                <div class="debug-panel" id="debugPanel"></div>
             </section>
             
             <div class="divider" aria-hidden="true"></div>
@@ -396,7 +384,7 @@
             <section class="receiver-section" aria-label="Recibir archivo">
                 <h2 class="section-title" tabindex="0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a极速3c 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
@@ -407,15 +395,10 @@
                     <p>Esperando archivo: <strong id="waitingFileName"></strong></p>
                     <p>Tamaño: <span id="waitingFileSize"></span></p>
                     
-                    <div class="ice-config" id="receiverIceConfig">
-                        <h3>Configuración de conexión</h3>
-                        <p id="receiverIceStatus">Conectando con el remitente...</p>
-                    </div>
-                    
                     <div class="progress-container" id="receiverProgress">
                         <p>Descargando:</p>
                         <div class="progress-bar">
-                            <div class="progress" id="receiverProgressBar"></div>
+                            <div class="progress" id="receiverProgressBar"></极速3c>
                         </div>
                         <div class="transfer-stats">
                             <span id="receiverProgressText">0%</span>
@@ -426,6 +409,7 @@
                     <button id="downloadBtn" class="btn" disabled aria-disabled="true">Descargar archivo</button>
                     
                     <div class="status" id="receiverStatus" role="status" aria-live="assertive"></div>
+                    <div class="debug-panel" id="receiverDebugPanel"></div>
                 </div>
                 
                 <p id="receiverInstructions" aria-label="Instrucciones para recibir archivo">Para recibir un archivo, use el enlace proporcionado por el remitente.</p>
@@ -442,27 +426,20 @@
     <!-- Cargar PeerJS desde CDN -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
-        // Mejoras: accesibilidad, manejo de foco y feedback visual
+        // Variables globales
+        let selectedFile = null;
+        let peer = null;
+        let connection = null;
+        let dataChannel = null;
+        let transferStartTime = null;
+        let speedHistory = [];
+        let encryptionKey = null;
+        let encryptionIV = null;
+        let receivedChunks = [];
+        let fileMeta = null;
+
+        // Inicialización cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
-            // Mejorar el feedback visual y accesibilidad
-            const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-            document.body.addEventListener('keydown', function(e) {
-                if (e.key === 'Tab') {
-                    const focusables = Array.from(document.querySelectorAll(focusableElements)).filter(el => !el.disabled && el.offsetParent !== null);
-                    if (focusables.length) {
-                        const first = focusables[0];
-                        const last = focusables[focusables.length - 1];
-                        if (e.shiftKey && document.activeElement === first) {
-                            last.focus();
-                            e.preventDefault();
-                        } else if (!e.shiftKey && document.activeElement === last) {
-                            first.focus();
-                            e.preventDefault();
-                        }
-                    }
-                }
-            });
-            
             // Elementos de la interfaz
             const dropArea = document.getElementById('dropArea');
             const fileInput = document.getElementById('fileInput');
@@ -473,54 +450,29 @@
             const shareLink = document.getElementById('shareLink');
             const linkInput = document.getElementById('linkInput');
             const copyLinkBtn = document.getElementById('copyLinkBtn');
-            const iceConfig = document.getElementById('iceConfig');
-            const iceStatus = document.getElementById('iceStatus');
-            const debugInfo = document.getElementById('debugInfo');
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
+            const progressText = document.getElementById('progress极速3c');
             const transferredSize = document.getElementById('transferredSize');
             const transferInfo = document.getElementById('transferInfo');
             const speedValue = document.getElementById('speedValue');
             const timeLeft = document.getElementById('timeLeft');
             const statusMessage = document.getElementById('statusMessage');
+            const debugPanel = document.getElementById('debugPanel');
             const receiverUI = document.getElementById('receiverUI');
             const receiverInstructions = document.getElementById('receiverInstructions');
             const waitingFileName = document.getElementById('waitingFileName');
             const waitingFileSize = document.getElementById('waitingFileSize');
-            const receiverIceConfig = document.getElementById('receiverIceConfig');
-            const receiverIceStatus = document.getElementById('receiverIceStatus');
             const receiverProgress = document.getElementById('receiverProgress');
             const receiverProgressBar = document.getElementById('receiverProgressBar');
             const receiverProgressText = document.getElementById('receiverProgressText');
             const receiverTransferredSize = document.getElementById('receiverTransferredSize');
             const downloadBtn = document.getElementById('downloadBtn');
             const receiverStatus = document.getElementById('receiverStatus');
-            
-            // Variables para el funcionamiento
-            let selectedFile = null;
-            let peer = null;
-            let connection = null;
-            let dataChannel = null;
-            let transferStartTime = null;
-            let speedHistory = [];
-            // Variables para cifrado
-            let encryptionKey = null;
-            let encryptionKeyRaw = null;
-            let encryptionIV = null;
-            
-            // Configuración ICE para conexiones a través de Internet
-            const iceServers = [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
-            ];
-            
+            const receiverDebugPanel = document.getElementById('receiverDebugPanel');
+
             // Configuración de eventos para la carga de archivos
             dropArea.addEventListener('click', () => fileInput.click());
-            
             fileInput.addEventListener('change', handleFileSelect);
             
             dropArea.addEventListener('dragover', (e) => {
@@ -560,180 +512,173 @@
             // Generar enlace de compartir
             generateLinkBtn.addEventListener('click', generateShareLink);
             
-            function generateShareLink() {
+            async function generateShareLink() {
                 if (!selectedFile) return;
+                
                 generateLinkBtn.disabled = true;
                 statusMessage.style.display = 'none';
-                iceConfig.style.display = 'block';
+                debugPanel.style.display = 'block';
+                debugPanel.innerHTML = 'Generando clave de cifrado...<br>';
 
-                // Crear un ID único para esta transferencia
-                const channelId = generateChannelId();
+                try {
+                    // Crear un ID único para esta transferencia
+                    const channelId = generateChannelId();
+                    debugPanel.innerHTML += `ID del canal: ${channelId}<br>`;
 
-                // Generar clave AES-GCM y IV
-                window.crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
-                    .then(async key => {
-                        encryptionKey = key;
-                        encryptionIV = window.crypto.getRandomValues(new Uint8Array(12));
-                        // Exportar clave en base64 para compartir
-                        encryptionKeyRaw = await window.crypto.subtle.exportKey('raw', key);
-                        const keyB64 = btoa(String.fromCharCode(...new Uint8Array(encryptionKeyRaw)));
-                        const ivB64 = btoa(String.fromCharCode(...encryptionIV));
-                        // Incluir clave y IV en el enlace
-                        const link = `${window.location.origin}${window.location.pathname}#${channelId}:${keyB64}:${ivB64}`;
-                        linkInput.value = link;
-                        shareLink.style.display = 'block';
+                    // Generar clave AES-GCM y IV
+                    encryptionKey = await window.crypto.subtle.generateKey(
+                        { name: 'AES-GCM', length: 256 }, 
+                        true, 
+                        ['encrypt', 'decrypt']
+                    );
+                    
+                    encryptionIV = window.crypto.getRandomValues(new Uint8Array(12));
+                    
+                    // Exportar clave en base64 para compartir
+                    const exportedKey = await window.crypto.subtle.exportKey('raw', encryptionKey);
+                    const keyB64 = arrayBufferToBase64(exportedKey);
+                    const ivB64 = arrayBufferToBase64(encryptionIV.buffer);
+                    
+                    // Incluir clave y IV en el enlace
+                    const link = `${window.location.origin}${window.location.pathname}#${channelId}:${keyB64}:${ivB64}`;
+                    linkInput.value = link;
+                    shareLink.style.display = 'block';
+                    debugPanel.innerHTML += 'Clave generada correctamente<br>';
 
-                        // Inicializar PeerJS con configuración ICE para conexiones a través de Internet
-                        try {
-                            peer = new Peer(channelId, {
-                                config: { iceServers: iceServers },
-                                debug: 3
+                    // Inicializar PeerJS
+                    debugPanel.innerHTML += 'Inicializando PeerJS...<br>';
+                    peer = new Peer(channelId, {
+                        config: {
+                            iceServers: [
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:stun1.l.google.com:19302' }
+                            ]
+                        },
+                        debug: 3
+                    });
+
+                    peer.on('open', (id) => {
+                        debugPanel.innerHTML += `PeerJS inicializado con ID: ${id}<br>`;
+                        statusMessage.textContent = 'Esperando conexión del destinatario...';
+                        statusMessage.className = 'status';
+                        statusMessage.style.display = 'block';
+                        
+                        peer.on('connection', (conn) => {
+                            debugPanel.innerHTML += 'Conexión entrante detectada<br>';
+                            connection = conn;
+                            conn.on('open', () => {
+                                debugPanel.innerHTML += 'Conexión establecida correctamente<br>';
+                                statusMessage.textContent = 'Destinatario conectado. Preparando transferencia...';
+                                statusMessage.className = 'status success';
+                                statusMessage.style.display = 'block';
+                                setupDataChannel();
                             });
                             
-                            peer.on('open', (id) => {
-                                iceStatus.textContent = 'Esperando conexión del destinatario...';
-                                debugInfo.textContent += `ID del peer: ${id}\n`;
-                                
-                                peer.on('connection', (conn) => {
-                                    connection = conn;
-                                    statusMessage.textContent = 'Destinatario conectado. Preparando transferencia...';
-                                    statusMessage.className = 'status success';
-                                    statusMessage.style.display = 'block';
-                                    setupDataChannel();
-                                });
-                            });
-                            
-                            peer.on('iceConnectionStateChange', (state) => {
-                                debugInfo.textContent += `Estado ICE: ${state}\n`;
-                                iceStatus.textContent = `Estado de conexión: ${state}`;
-                                
-                                if (state === 'connected') {
-                                    iceStatus.textContent = 'Conexión establecida correctamente';
-                                    iceConfig.style.display = 'none';
-                                } else if (state === 'disconnected' || state === 'failed') {
-                                    iceStatus.textContent = `Problema de conexión: ${state}. Intentando reconectar...`;
-                                    setTimeout(() => {
-                                        if (peer && peer.disconnected) {
-                                            peer.reconnect();
-                                        }
-                                    }, 2000);
-                                }
-                            });
-                            
-                            peer.on('error', (err) => {
-                                debugInfo.textContent += `Error: ${err.type} - ${err.message}\n`;
-                                iceStatus.textContent = `Error: ${err.type}`;
-                                statusMessage.textContent = `Error: ${err.type}`;
+                            conn.on('error', (err) => {
+                                debugPanel.innerHTML += `Error en conexión: ${err}<br>`;
+                                statusMessage.textContent = `Error de conexión: ${err}`;
                                 statusMessage.className = 'status error';
                                 statusMessage.style.display = 'block';
-                                generateLinkBtn.disabled = false;
-                                
-                                // Intentar reconectar en caso de error
-                                if (err.type === 'network' || err.type === 'peer-unavailable') {
-                                    setTimeout(() => {
-                                        if (peer && peer.disconnected) {
-                                            peer.reconnect();
-                                        }
-                                    }, 3000);
-                                }
                             });
-                            
-                            peer.on('disconnected', () => {
-                                debugInfo.textContent += 'Peer desconectado. Reconectando...\n';
-                                iceStatus.textContent = 'Desconectado. Reconectando...';
-                                peer.reconnect();
-                            });
-                            
-                            // Habilitar información de depuración
-                            debugInfo.style.display = 'block';
-                            
-                        } catch (error) {
-                            statusMessage.textContent = `Error inicializando PeerJS: ${error.message}`;
-                            statusMessage.className = 'status error';
-                            statusMessage.style.display = 'block';
-                            generateLinkBtn.disabled = false;
-                        }
-                    })
-                    .catch(error => {
-                        statusMessage.textContent = `Error generando clave de cifrado: ${error.message}`;
+                        });
+                    });
+
+                    peer.on('error', (err) => {
+                        debugPanel.innerHTML += `Error de PeerJS: ${err}<br>`;
+                        statusMessage.textContent = `Error: ${err}`;
                         statusMessage.className = 'status error';
                         statusMessage.style.display = 'block';
                         generateLinkBtn.disabled = false;
                     });
+
+                } catch (error) {
+                    debugPanel.innerHTML += `Error: ${error.message}<br>`;
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    statusMessage.className = 'status error';
+                    statusMessage.style.display = 'block';
+                    generateLinkBtn.disabled = false;
+                }
             }
             
             // Configurar el canal de datos
             function setupDataChannel() {
+                debugPanel.innerHTML += 'Configurando canal de datos...<br>';
+                
+                // En PeerJS, la conexión ya es un canal de datos
                 dataChannel = connection;
                 
-                dataChannel.on('open', () => {
-                    // Enviar metadatos del archivo primero
-                    dataChannel.send({
-                        type: 'metadata',
-                        name: selectedFile.name,
-                        size: selectedFile.size,
-                        mimeType: selectedFile.type
-                    });
+                dataChannel.on('data', (data) => {
+                    debugPanel.innerHTML += `Datos recibidos: ${data.type || 'unknown'}<br>`;
                     
-                    // Preparar para enviar el archivo
-                    progressContainer.style.display = 'block';
-                    transferInfo.style.display = 'block';
-                    transferStartTime = Date.now();
-                    sendFile();
+                    // Manejar mensajes de control del receptor
+                    if (data.type === 'ready') {
+                        debugPanel.innerHTML += 'Receptor listo, iniciando transferencia...<br>';
+                        sendFile();
+                    }
                 });
                 
                 dataChannel.on('close', () => {
+                    debugPanel.innerHTML += 'Conexión cerrada<br>';
                     statusMessage.textContent = 'Conexión cerrada';
                     statusMessage.className = 'status';
                     statusMessage.style.display = 'block';
                 });
                 
                 dataChannel.on('error', (err) => {
-                    statusMessage.textContent = `Error en la transferencia: ${err.message}`;
+                    debugPanel.innerHTML += `Error en el canal de datos: ${err}<br>`;
+                    statusMessage.textContent = `Error en la transferencia: ${err}`;
                     statusMessage.className = 'status error';
                     statusMessage.style.display = 'block';
                 });
                 
-                dataChannel.on('iceStateChange', (state) => {
-                    debugInfo.textContent += `Estado ICE del canal: ${state}\n`;
+                // Enviar metadatos del archivo
+                debugPanel.innerHTML += 'Enviando metadatos del archivo...<br>';
+                dataChannel.send({
+                    type: 'metadata',
+                    name: selectedFile.name,
+                    size: selectedFile.size,
+                    mimeType: selectedFile.type
                 });
+                
+                // Preparar interfaz para transferencia
+                progressContainer.style.display = 'block';
+                transferInfo.style.display = 'block';
             }
             
             // Enviar el archivo por chunks
-            function sendFile() {
+            async function sendFile() {
+                debugPanel.innerHTML += 'Iniciando envío de archivo...<br>';
                 const chunkSize = 16384; // 16KB
                 const fileReader = new FileReader();
                 let offset = 0;
+                transferStartTime = Date.now();
 
                 fileReader.addEventListener('error', (err) => {
+                    debugPanel.innerHTML += `Error reading file: ${err}<br>`;
                     statusMessage.textContent = `Error reading file: ${err}`;
                     statusMessage.className = 'status error';
                     statusMessage.style.display = 'block';
                 });
 
                 fileReader.addEventListener('load', async (e) => {
-                    // Cifrar el chunk antes de enviar
-                    const chunk = e.target.result;
-                    const chunkIV = window.crypto.getRandomValues(new Uint8Array(12));
-                    
                     try {
+                        const chunk = e.target.result;
+                        
+                        // Cifrar el chunk antes de enviar
                         const encrypted = await window.crypto.subtle.encrypt(
-                            { name: 'AES-GCM', iv: chunkIV },
+                            { name: 'AES-GCM', iv: encryptionIV },
                             encryptionKey,
                             chunk
                         );
                         
-                        // Enviar el chunk cifrado y su IV
-                        dataChannel.send({ 
-                            type: 'chunk', 
-                            iv: Array.from(chunkIV), 
-                            data: Array.from(new Uint8Array(encrypted)) 
+                        // Enviar el chunk cifrado
+                        dataChannel.send({
+                            type: 'chunk',
+                            data: Array.from(new Uint8Array(encrypted)),
+                            offset: offset
                         });
                         
                         offset += chunk.byteLength;
-
-                        // Enviar progreso al receptor
-                        dataChannel.send({ type: 'progress', offset });
 
                         // Actualizar progreso local
                         const progress = (offset / selectedFile.size) * 100;
@@ -742,14 +687,12 @@
                         transferredSize.textContent = `${formatFileSize(offset)} / ${formatFileSize(selectedFile.size)}`;
 
                         // Calcular velocidad de transferencia
-                        const elapsedTime = (Date.now() - transferStartTime) / 1000; // en segundos
-                        const currentSpeed = offset / elapsedTime; // bytes por segundo
+                        const elapsedTime = (Date.now() - transferStartTime) / 1000;
+                        const currentSpeed = offset / elapsedTime;
                         speedHistory.push(currentSpeed);
 
                         // Mantener solo los últimos 10 valores para suavizado
-                        if (speedHistory.length > 10) {
-                            speedHistory.shift();
-                        }
+                        if (speedHistory.length > 10) speedHistory.shift();
 
                         // Calcular velocidad promedio
                         const avgSpeed = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
@@ -766,17 +709,15 @@
                             readNextChunk();
                         } else {
                             // Transferencia completada
+                            debugPanel.innerHTML += 'Transferencia completada<br>';
+                            dataChannel.send({ type: 'complete' });
                             statusMessage.textContent = 'Archivo enviado con éxito';
                             statusMessage.className = 'status success';
                             statusMessage.style.display = 'block';
-
-                            // Ocultar información de transferencia
-                            setTimeout(() => {
-                                transferInfo.style.display = 'none';
-                            }, 5000);
                         }
                     } catch (error) {
-                        statusMessage.textContent = `Error cifrando datos: ${error.message}`;
+                        debugPanel.innerHTML += `Error encrypting/sending: ${error}<br>`;
+                        statusMessage.textContent = `Error: ${error.message}`;
                         statusMessage.className = 'status error';
                         statusMessage.style.display = 'block';
                     }
@@ -787,6 +728,7 @@
                     fileReader.readAsArrayBuffer(slice);
                 }
 
+                // Iniciar la lectura del primer chunk
                 readNextChunk();
             }
             
@@ -795,10 +737,8 @@
                 linkInput.select();
                 navigator.clipboard.writeText(linkInput.value).then(() => {
                     copyLinkBtn.textContent = '¡Copiado!';
-                    copyLinkBtn.setAttribute('aria-label', 'Enlace copiado');
                     setTimeout(() => {
                         copyLinkBtn.textContent = 'Copiar';
-                        copyLinkBtn.setAttribute('aria-label', 'Copiar enlace al portapapeles');
                     }, 2000);
                 });
             });
@@ -812,168 +752,156 @@
             }
             
             // Inicializar modo receptor
-            function initReceiver(channelId) {
+            async function initReceiver(channelId) {
                 receiverInstructions.style.display = 'none';
                 receiverUI.style.display = 'block';
-                receiverIceConfig.style.display = 'block';
+                receiverDebugPanel.style.display = 'block';
+                receiverDebugPanel.innerHTML = 'Inicializando receptor...<br>';
 
-                // Extraer clave y IV del enlace
-                const parts = channelId.split(':');
-                const channel = parts[0];
-                const keyB64 = parts[1];
-                const ivB64 = parts[2];
-
-                // Importar clave AES-GCM
-                let receiverKey = null;
-                let receiverIV = null;
-                
                 try {
-                    receiverKey = window.crypto.subtle.importKey(
-                        'raw',
-                        Uint8Array.from(atob(keyB64), c => c.charCodeAt(0)),
-                        { name: 'AES-GCM' },
-                        false,
+                    // Extraer información del enlace
+                    const parts = channelId.split(':');
+                    const channel = parts[0];
+                    const keyB64 = parts[1];
+                    const ivB64 = parts[2];
+                    
+                    receiverDebugPanel.innerHTML += `Conectando al canal: ${channel}<br>`;
+                    
+                    // Importar clave de cifrado
+                    const keyData = base64ToArrayBuffer(keyB64);
+                    encryptionKey = await window.crypto.subtle.importKey(
+                        'raw', 
+                        keyData, 
+                        { name: 'AES-GCM' }, 
+                        false, 
                         ['decrypt']
                     );
                     
-                    receiverIV = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+                    encryptionIV = new Uint8Array(base64ToArrayBuffer(ivB64));
+                    receiverDebugPanel.innerHTML += 'Clave de cifrado importada correctamente<br>';
                     
+                    // Inicializar PeerJS
                     peer = new Peer({
-                        config: { iceServers: iceServers },
+                        config: {
+                            iceServers: [
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:stun1.l.google.com:19302' }
+                            ]
+                        },
                         debug: 3
                     });
                     
                     peer.on('open', (id) => {
-                        receiverIceStatus.textContent = 'Conectando con el remitente...';
+                        receiverDebugPanel.innerHTML += `PeerJS inicializado con ID: ${id}<br>`;
+                        receiverStatus.textContent = 'Conectando con el remitente...';
+                        receiverStatus.className = 'status';
+                        receiverStatus.style.display = 'block';
                         
                         connection = peer.connect(channel, { reliable: true });
-
-                        if (!connection) {
-                            receiverStatus.textContent = 'Error al conectar con el remitente';
-                            receiverStatus.className = 'status error';
-                            receiverStatus.style.display = 'block';
-                            return;
-                        }
-
+                        
                         connection.on('open', () => {
-                            receiverStatus.textContent = 'Conectado al remitente. Esperando archivo...';
+                            receiverDebugPanel.innerHTML += 'Conexión establecida con el remitente<br>';
+                            receiverStatus.textContent = 'Conectado. Esperando archivo...';
                             receiverStatus.className = 'status success';
                             receiverStatus.style.display = 'block';
-                            receiverIceConfig.style.display = 'none';
-
-                            let receivedData = [];
-                            let receivedBytes = 0;
-                            let fileMeta = null;
-
-                            connection.on('data', async (data) => {
-                                // Si son metadatos
-                                if (typeof data === 'object' && data.type === 'metadata') {
-                                    fileMeta = data;
-                                    waitingFileName.textContent = data.name;
-                                    waitingFileSize.textContent = formatFileSize(data.size);
-                                    receiverProgress.style.display = 'block';
-                                    receiverTransferredSize.textContent = `0 B / ${formatFileSize(data.size)}`;
-                                    return;
-                                }
-                                // Si es progreso
-                                if (typeof data === 'object' && data.type === 'progress' && fileMeta) {
-                                    // Actualizar barra de progreso sincronizada
-                                    const offset = data.offset;
-                                    const progress = (offset / fileMeta.size) * 100;
-                                    receiverProgressBar.style.width = `${progress}%`;
-                                    receiverProgressText.textContent = `${progress.toFixed(1)}%`;
-                                    receiverTransferredSize.textContent = `${formatFileSize(offset)} / ${formatFileSize(fileMeta.size)}`;
-                                    return;
-                                }
-                                // Si es un chunk cifrado
-                                if (typeof data === 'object' && data.type === 'chunk') {
-                                    try {
-                                        const chunkIV = new Uint8Array(data.iv);
-                                        const encrypted = new Uint8Array(data.data).buffer;
-                                        const decrypted = await window.crypto.subtle.decrypt(
-                                            { name: 'AES-GCM', iv: chunkIV },
-                                            await receiverKey,
-                                            encrypted
-                                        );
-                                        receivedData.push(decrypted);
-                                        receivedBytes += decrypted.byteLength;
-                                        // Comprobar si hemos recibido todo
-                                        if (receivedBytes >= fileMeta.size) {
-                                            receiverStatus.textContent = 'Archivo recibido. Listo para descargar.';
-                                            receiverStatus.className = 'status success';
-                                            receiverStatus.style.display = 'block';
-                                            downloadBtn.disabled = false;
-                                            // Preparar el archivo para descarga
-                                            downloadBtn.addEventListener('click', () => {
-                                                const blob = new Blob(receivedData, { type: fileMeta.mimeType });
-                                                const url = URL.createObjectURL(blob);
-                                                const a = document.createElement('a');
-                                                a.href = url;
-                                                a.download = fileMeta.name;
-                                                document.body.appendChild(a);
-                                                a.click();
-                                                document.body.removeChild(a);
-                                                URL.revokeObjectURL(url);
-                                            });
-                                        }
-                                    } catch (e) {
-                                        receiverStatus.textContent = 'Error al descifrar chunk.';
-                                        receiverStatus.className = 'status error';
-                                        receiverStatus.style.display = 'block';
-                                        console.error('Error decrypting:', e);
-                                    }
-                                    return;
-                                }
-                            });
+                            
+                            // Notificar que estamos listos para recibir
+                            connection.send({ type: 'ready' });
+                            
+                            // Configurar manejador de datos
+                            connection.on('data', handleIncomingData);
                         });
-
+                        
                         connection.on('error', (err) => {
-                            receiverStatus.textContent = `Error de conexión: ${err.message}`;
+                            receiverDebugPanel.innerHTML += `Error de conexión: ${err}<br>`;
+                            receiverStatus.textContent = `Error de conexión: ${err}`;
                             receiverStatus.className = 'status error';
                             receiverStatus.style.display = 'block';
                         });
-                        
-                        connection.on('iceStateChange', (state) => {
-                            receiverIceStatus.textContent = `Estado de conexión: ${state}`;
-                        });
-                    });
-
-                    peer.on('error', (err) => {
-                        receiverStatus.textContent = `Error: ${err.type}`;
-                        receiverStatus.className = 'status error';
-                        receiverStatus.style.display = 'block';
-                        receiverIceStatus.textContent = `Error: ${err.type}`;
-                        
-                        // Intentar reconectar en caso de error
-                        if (err.type === 'network' || err.type === 'peer-unavailable') {
-                            setTimeout(() => {
-                                if (peer && peer.disconnected) {
-                                    peer.reconnect();
-                                }
-                            }, 3000);
-                        }
                     });
                     
-                    peer.on('disconnected', () => {
-                        receiverIceStatus.textContent = 'Desconectado. Reconectando...';
-                        peer.reconnect();
+                    peer.on('error', (err) => {
+                        receiverDebugPanel.innerHTML += `Error de PeerJS: ${err}<br>`;
+                        receiverStatus.textContent = `Error: ${err}`;
+                        receiverStatus.className = 'status error';
+                        receiverStatus.style.display = 'block';
                     });
                     
                 } catch (error) {
-                    receiverStatus.textContent = `Error procesando enlace: ${error.message}`;
+                    receiverDebugPanel.innerHTML += `Error inicializando receptor: ${error}<br>`;
+                    receiverStatus.textContent = `Error: ${error.message}`;
                     receiverStatus.className = 'status error';
                     receiverStatus.style.display = 'block';
                 }
             }
             
-            // Función auxiliar para formatear tamaños de archivo
+            // Manejar datos entrantes en el receptor
+            async function handleIncomingData(data) {
+                const debugPanel = document.getElementById('receiverDebugPanel');
+                
+                try {
+                    if (data.type === 'metadata') {
+                        debugPanel.innerHTML += 'Metadatos recibidos<br>';
+                        fileMeta = data;
+                        waitingFileName.textContent = data.name;
+                        waitingFileSize.textContent = formatFileSize(data.size);
+                        receiverProgress.style.display = 'block';
+                        receiverTransferredSize.textContent = `0 B / ${formatFileSize(data.size)}`;
+                        receivedChunks = [];
+                    } 
+                    else if (data.type === 'chunk') {
+                        // Descifrar el chunk
+                        const encryptedData = new Uint8Array(data.data).buffer;
+                        const decrypted = await window.crypto.subtle.decrypt(
+                            { name: 'AES-GCM', iv: encryptionIV },
+                            encryptionKey,
+                            encryptedData
+                        );
+                        
+                        receivedChunks.push(decrypted);
+                        const receivedBytes = receivedChunks.reduce((acc, chunk) => acc + chunk.byteLength, 0);
+                        
+                        // Actualizar progreso
+                        const progress = (receivedBytes / fileMeta.size) * 100;
+                        receiverProgressBar.style.width = `${progress}%`;
+                        receiverProgressText.textContent = `${progress.toFixed(1)}%`;
+                        receiverTransferredSize.textContent = `${formatFileSize(receivedBytes)} / ${formatFileSize(fileMeta.size)}`;
+                    } 
+                    else if (data.type === 'complete') {
+                        debugPanel.innerHTML += 'Transferencia completada<br>';
+                        receiverStatus.textContent = 'Archivo recibido. Listo para descargar.';
+                        receiverStatus.className = 'status success';
+                        receiverStatus.style.display = 'block';
+                        downloadBtn.disabled = false;
+                        
+                        // Preparar el archivo para descarga
+                        downloadBtn.addEventListener('click', () => {
+                            const blob = new Blob(receivedChunks, { type: fileMeta.mimeType });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileMeta.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        });
+                    }
+                } catch (error) {
+                    debugPanel.innerHTML += `Error procesando datos: ${error}<br>`;
+                    receiverStatus.textContent = `Error: ${error.message}`;
+                    receiverStatus.className = 'status error';
+                    receiverStatus.style.display = 'block';
+                }
+            }
+            
+            // Funciones auxiliares
             function formatFileSize(bytes) {
                 if (bytes < 1024) return bytes + ' B';
                 else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
                 else return (bytes / 1048576).toFixed(1) + ' MB';
             }
             
-            // Función para formatear el tiempo en segundos a mm:ss
             function formatTime(seconds) {
                 if (isNaN(seconds) || !isFinite(seconds)) return '--:--';
                 const mins = Math.floor(seconds / 60);
@@ -981,10 +909,27 @@
                 return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             }
             
-            // Generar un ID único para el canal
             function generateChannelId() {
                 return Math.random().toString(36).substring(2, 10) + 
                        Math.random().toString(36).substring(2, 10);
+            }
+            
+            function arrayBufferToBase64(buffer) {
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return btoa(binary);
+            }
+            
+            function base64ToArrayBuffer(base64) {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return bytes.buffer;
             }
         });
     </script>
