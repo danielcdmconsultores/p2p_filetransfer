@@ -2,174 +2,281 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Transferencia de ficheros con PeerJS (WebRTC)</title>
+<title>Transferencia de ficheros con PeerJS / File sharing with PeerJS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body{font-family:Arial,sans-serif;margin:0;padding:1rem;background:#f5f5f5}
   .card{background:#fff;padding:1.5rem;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);max-width:600px;margin:auto}
   h1{font-size:1.6rem;margin:0 0 .5rem}
-  #status{margin-top:1rem;height:1.2rem;background:#e0e0e0;border-radius:4px;overflow:hidden}
-  #status div{height:100%;width:0;background:#4caf50;transition:width .3s}
+  #statusBar{margin-top:1rem;height:1.2rem;background:#e0e0e0;border-radius:4px;overflow:hidden}
+  #statusBar div{height:100%;width:0;background:#4caf50;transition:width .3s}
   #link{word-break:break-all;color:#0066cc}
-  input[type=file]{display:block;margin:1rem 0}
-  button{background:#0066ff;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer}
+  button{background:#0066ff;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;margin-right:.5rem}
   button:disabled{background:#999;cursor:not-allowed}
+  #msg{margin-top:.8rem;padding:.5rem;background:#fffae6;border-left:4px solid #ffeb3b}
+  #langToggle{position:fixed;top:1rem;right:1rem;background:#eee;color:#333;padding:.3rem .6rem;border-radius:4px;cursor:pointer}
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>🔗 Compartir archivo (PeerJS)</h1>
+<div id="langToggle">🇪🇸 / 🇬🇧</div>
 
-  <!-- 1️⃣ Parte “emisor” -->
+<div class="card">
+  <h1 id="title">🔗 Compartir archivo / Share file</h1>
+
+  <!-- ---------- SENDER ---------- -->
   <div id="sender">
     <input type="file" id="fileInput">
     <p id="shareLink" style="display:none;">
-      Copia y pega esta URL en el navegador del receptor:
+      <span id="shareText">Copia y pega esta URL en el navegador del receptor</span>:
+      <br>
       <span id="link"></span>
+      <button id="copyBtn">📋 Copy / Copiar</button>
     </p>
+    <div id="msg"></div>
   </div>
 
-  <!-- 2️⃣ Parte “receptor” (se muestra sólo cuando llega una conexión) -->
+  <!-- ---------- RECEIVER ---------- -->
   <div id="receiver" style="display:none;">
-    <p id="recvInfo">Recibiendo: <b id="recvName"></b></p>
-    <a id="downloadBtn" style="display:none;" download>⬇️ Descargar archivo</a>
+    <p><b id="recvLabel">Receiving:</b> <span id="recvName"></span></p>
+    <a id="downloadBtn" style="display:none;" download>⬇️ Download / Descargar</a>
+    <div id="msg"></div>
   </div>
 
-  <!-- 3️⃣ Barra de estado (progreso) -->
-  <div id="status"><div></div></div>
+  <!-- ---------- PROGRESS BAR ---------- -->
+  <div id="statusBar"><div></div></div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (() => {
-  // ---------- CONFIGURACIÓN SEGURA ----------
-  //   • Usamos HTTPS (el script de PeerJS se sirve vía CDN seguro)
-  //   • Conexión al servidor público de PeerJS (TLS, puerto 443)
-  //   • No guardamos nada en localStorage ni ejecutamos código arbitrario.
-  const peer = new Peer(null, {
+  /* ==============================================================
+   *  1️⃣  SETTINGS & GLOBAL STATE
+   * ============================================================== */
+  const LANG = {                 // text in both languages
+    es: {
+      title:       '🔗 Compartir archivo',
+      shareText:   'Copia y pega esta URL en el navegador del receptor',
+      copy:        '📋 Copiar',
+      copied:      '✅ Copiado al portapapeles',
+      waiting:     '⏳ Esperando conexión…',
+      connected:   '✅ Conexión establecida',
+      sending:     '📤 Enviando archivo…',
+      received:    '📥 Archivo recibido',
+      download:    '⬇️ Descargar',
+      recv:        'Recibiendo:',
+      finished:    '✅ Transferencia completada',
+      dontClose:   '⚠️ No cierres la ventana hasta que la descarga termine',
+      error:       '❗ Error: '
+    },
+    en: {
+      title:       '🔗 Share file',
+      shareText:   'Copy & paste this URL into the receiver’s browser',
+      copy:        '📋 Copy',
+      copied:      '✅ Copied to clipboard',
+      waiting:     '⏳ Waiting for connection…',
+      connected:   '✅ Connected',
+      sending:     '📤 Sending file…',
+      received:    '📥 File received',
+      download:    '⬇️ Download',
+      recv:        'Receiving:',
+      finished:    '✅ Transfer complete',
+      dontClose:   '⚠️ Do not close the window until the download finishes',
+      error:       '❗ Error: '
+    }
+  };
+  let curLang = 'es';                     // default language
+  const txt = () => LANG[curLang];        // helper to read current language
+
+  const peer = new Peer(null, {           // use public PeerJS server (TLS)
     host: '0.peerjs.com',
     secure: true,
     port: 443
   });
 
-  const fileInput   = document.getElementById('fileInput');
-  const shareLink   = document.getElementById('shareLink');
-  const linkSpan    = document.getElementById('link');
-  const statusBar   = document.getElementById('status').firstElementChild;
-  const receiverDiv = document.getElementById('receiver');
-  const recvInfo    = document.getElementById('recvInfo');
-  const recvName    = document.getElementById('recvName');
-  const downloadBtn = document.getElementById('downloadBtn');
+  const ui = {
+    title:        document.getElementById('title'),
+    fileInput:    document.getElementById('fileInput'),
+    shareLink:    document.getElementById('shareLink'),
+    linkSpan:     document.getElementById('link'),
+    copyBtn:      document.getElementById('copyBtn'),
+    sender:       document.getElementById('sender'),
+    receiver:     document.getElementById('receiver'),
+    recvLabel:    document.getElementById('recvLabel'),
+    recvName:     document.getElementById('recvName'),
+    downloadBtn:  document.getElementById('downloadBtn'),
+    statusBar:    document.getElementById('statusBar').firstElementChild,
+    msgArea:      document.querySelectorAll('#msg'),
+    langToggle:   document.getElementById('langToggle')
+  };
 
-  // ---------- ESTADO ----------
-  const CHUNK_SIZE = 64 * 1024;           // 64 KB (tamaño razonable para data‑channels)
-  let fileMeta = null;                    // {name,size,type}
-  let chunks   = [];                      // almacena los blobs recibidos
+  const CHUNK_SIZE = 64 * 1024;           // 64 KB chunks (good for data‑channels)
 
-  // ---------- EMISOR ----------
-  peer.on('open', id => {
-    // Cuando el peer está listo, el usuario podrá elegir un fichero.
-    console.log('Peer inicializado con id:', id);
+  let fileMeta = null;                   // {name,size,type}
+  let chunks   = [];                     // received Uint8Array's
+  let downloadFinished = false;          // used for beforeunload warning
+
+  /* ==============================================================
+   *  2️⃣  UI HELPERS (language switch, status messages, progress)
+   * ============================================================== */
+  const setLang = (l) => {
+    curLang = l;
+    ui.title.textContent      = txt().title;
+    ui.shareLink.querySelector('#shareText').textContent = txt().shareText;
+    ui.copyBtn.textContent    = txt().copy;
+    ui.recvLabel.textContent  = txt().recv;
+    ui.downloadBtn.textContent = txt().download;
+    // refresh current message (if any)
+    ui.msgArea.forEach(m => m.textContent = '');
+  };
+  setLang(curLang);                     // initialise texts
+
+  ui.langToggle.addEventListener('click', () => {
+    setLang(curLang === 'es' ? 'en' : 'es');
   });
 
-  // Cuando el usuario escoge un archivo…
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
+  const setMsg = (msg) => {
+    ui.msgArea.forEach(m => m.textContent = msg);
+  };
+
+  const updateProgress = (ratio) => {
+    const pct = Math.min(100, Math.round(ratio * 100));
+    ui.statusBar.style.width = pct + '%';
+    if (pct === 100) ui.statusBar.style.background = '#2196F3';
+  };
+
+  const preventClose = (e) => {
+    if (!downloadFinished) {
+      e.preventDefault();
+      e.returnValue = txt().dontClose;
+      return txt().dontClose;
+    }
+  };
+  window.addEventListener('beforeunload', preventClose);
+
+  /* ==============================================================
+   *  3️⃣  SENDER LOGIC
+   * ============================================================== */
+  peer.on('open', id => {
+    console.log('Peer opened with id:', id);
+    // nothing else to do until a file is selected
+  });
+
+  ui.fileInput.addEventListener('change', () => {
+    const file = ui.fileInput.files[0];
     if (!file) return;
 
     fileMeta = {name: file.name, size: file.size, type: file.type};
 
-    // Generamos la URL que el otro navegador debe abrir.
     const url = `${location.origin}${location.pathname}?peer=${peer.id}`;
-    linkSpan.textContent = url;
-    shareLink.style.display = 'block';
+    ui.linkSpan.textContent = url;
+    ui.shareLink.style.display = 'block';
+    setMsg(txt().waiting);
+  });
 
-    // Esperamos la conexión del receptor.
-    peer.on('connection', conn => {
-      console.log('Conexión entrante:', conn.peer);
-      conn.on('open', () => sendFile(conn, file));
-      conn.on('error', err => console.error('Error de conexión:', err));
+  // Copy‑to‑clipboard button
+  ui.copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(ui.linkSpan.textContent);
+      ui.copyBtn.textContent = txt().copied;
+      setTimeout(() => ui.copyBtn.textContent = txt().copy, 2000);
+    } catch (err) {
+      console.error('Clipboard error', err);
+    }
+  });
+
+  // When a receiver connects we start sending
+  peer.on('connection', conn => {
+    setMsg(txt().connected);
+    console.log('Incoming connection from', conn.peer);
+    conn.on('open', () => sendFile(conn, ui.fileInput.files[0]));
+    conn.on('error', err => {
+      console.error('Connection error', err);
+      setMsg(txt().error + err);
     });
   });
 
-  // Envío del fichero en trozos.
   async function sendFile(conn, file) {
-    // 1️⃣ Enviamos primero los metadatos (nombre, tamaño, tipo)
-    conn.send({type:'meta', data:fileMeta});
+    setMsg(txt().sending);
+    // 1️⃣ Send meta first
+    conn.send({type: 'meta', data: fileMeta});
     updateProgress(0);
 
-    // 2️⃣ Leemos el archivo en bloques y los enviamos uno a uno.
-    const fileReader = file.stream().getReader();
-    let offset = 0;
+    // 2️⃣ Stream file in chunks
+    const reader = file.stream().getReader();
+    let sent = 0;
 
     while (true) {
-      const {done, value} = await fileReader.read();
-      if (done) break;                 // fin del stream
-
-      // value es un Uint8Array → lo convertimos en Blob para enviarlo
-      conn.send({type:'chunk', data: value.buffer});   // ArrayBuffer es transferible
-      offset += value.byteLength;
-      updateProgress(offset / fileMeta.size);
+      const {done, value} = await reader.read();
+      if (done) break;
+      // value is Uint8Array → send its underlying ArrayBuffer (transferable)
+      conn.send({type: 'chunk', data: value.buffer});
+      sent += value.byteLength;
+      updateProgress(sent / fileMeta.size);
     }
 
-    // 3️⃣ Señal de fin de transmisión
-    conn.send({type:'end'});
-    console.log('Archivo enviado completamente');
+    // 3️⃣ End marker
+    conn.send({type: 'end'});
+    setMsg(txt().finished);
+    console.log('File sent');
   }
 
-  // ---------- RECEPTOR ----------
-  // Si la URL contiene ?peer=xxxx, nos convertimos en receptor.
+  /* ==============================================================
+   *  4️⃣  RECEIVER LOGIC
+   * ============================================================== */
   const urlParams = new URLSearchParams(location.search);
   const remoteId = urlParams.get('peer');
-  if (remoteId) {
-    // Ocultamos la zona de envío y activamos la de recepción.
-    document.getElementById('sender').style.display = 'none';
-    receiverDiv.style.display = 'block';
 
-    // Creamos una conexión saliente al peer que está enviando.
+  if (remoteId) {
+    // Hide sender UI, show receiver UI
+    ui.sender.style.display = 'none';
+    ui.receiver.style.display = 'block';
+    setMsg(txt().waiting);
+
     const conn = peer.connect(remoteId);
-    conn.on('open', () => console.log('Conexión establecida con', remoteId));
+    conn.on('open', () => {
+      setMsg(txt().connected);
+      console.log('Connected to peer', remoteId);
+    });
     conn.on('data', handleIncoming);
-    conn.on('error', err => console.error('Error de conexión:', err));
+    conn.on('error', err => {
+      console.error('Connection error', err);
+      setMsg(txt().error + err);
+    });
   }
 
-  // Maneja los mensajes que llegan del emisor.
   function handleIncoming(msg) {
     if (msg.type === 'meta') {
-      // 1️⃣ Recibimos los metadatos.
       fileMeta = msg.data;
-      recvName.textContent = fileMeta.name;
+      ui.recvName.textContent = fileMeta.name;
+      setMsg(txt().received);
       updateProgress(0);
     } else if (msg.type === 'chunk') {
-      // 2️⃣ Cada bloque llega como ArrayBuffer → lo guardamos.
       chunks.push(new Uint8Array(msg.data));
       const received = chunks.reduce((s, c) => s + c.byteLength, 0);
       updateProgress(received / fileMeta.size);
     } else if (msg.type === 'end') {
-      // 3️⃣ Todo recibido → ensamblamos el Blob y generamos el enlace de descarga.
       const blob = new Blob(chunks, {type: fileMeta.type});
-      const url = URL.createObjectURL(blob);
-      downloadBtn.href = url;
-      downloadBtn.download = fileMeta.name;
-      downloadBtn.textContent = `⬇️ Descargar "${fileMeta.name}" (${(fileMeta.size/1024/1024).toFixed(2)} MiB)`;
-      downloadBtn.style.display = 'inline-block';
+      const dlUrl = URL.createObjectURL(blob);
+      ui.downloadBtn.href = dlUrl;
+      ui.downloadBtn.download = fileMeta.name;
+      ui.downloadBtn.style.display = 'inline-block';
       updateProgress(1);
-      console.log('Transferencia completada');
+      setMsg(txt().finished);
+      // Once the user clicks the download button we consider the job done
+      ui.downloadBtn.addEventListener('click', () => {
+        downloadFinished = true;          // allow window to be closed
+        setTimeout(() => URL.revokeObjectURL(dlUrl), 30_000);
+      });
     }
   }
 
-  // ---------- UI ----------
-  function updateProgress(ratio) {
-    const pct = Math.min(100, Math.round(ratio * 100));
-    statusBar.style.width = pct + '%';
-    if (pct === 100) {
-      statusBar.style.background = '#2196F3';
-    }
-  }
-
-  // ---------- FALLBACK Y SEGURIDAD ----------
-  // Cualquier excepción inesperada se captura y muestra en consola (no se expone al usuario).
-  window.addEventListener('error', e => console.error('Error global:', e.error));
+  /* ==============================================================
+   *  5️⃣  GLOBAL ERROR HANDLING
+   * ============================================================== */
+  window.addEventListener('error', e => {
+    console.error('Global error', e.error);
+    setMsg(txt().error + e.message);
+  });
 })();
 </script>
 </body>
