@@ -2,22 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>P2P File Share · WebRTC + PeerJS</title>
+  <title>P2P File Share · WebRTC + PeerJS (STUN público)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Seguridad básica -->
+  <!-- CSP simple y permisiva para cargar PeerJS por CDN -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' https://unpkg.com https://peerjs.com; script-src 'self' https://unpkg.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https: wss:; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'">
   <style>
     :root { --bg:#0b1020; --card:#141a2a; --muted:#9fb0d0; --accent:#46c3ff; --ok:#38d39f; --warn:#ffcc00; --err:#ff6677; }
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:white;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif}
-    .wrap{max-width:900px;margin:auto;padding:16px}
+    .wrap{max-width:960px;margin:auto;padding:16px}
     .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    h1{font-size:1.4rem;margin:0 0 8px} h2{font-size:1.1rem;margin:14px 0 8px;color:var(--accent)}
+    h1{font-size:1.4rem;margin:0 0 8px} h2{font-size:1.05rem;margin:14px 0 8px;color:var(--accent)}
     .row{display:grid;gap:12px;grid-template-columns:1fr} @media(min-width:720px){.row{grid-template-columns:1fr 1fr}}
     label{display:block;font-size:.9rem;margin:.4rem 0 .2rem;color:var(--muted)}
     input[type="text"],input[type="url"],input[type="number"],select{width:100%;padding:10px;border-radius:12px;border:1px solid #2a324a;background:#0f1424;color:white}
-    input[type="checkbox"]{transform:scale(1.2)}
-    input[type="file"]{border:1px dashed #2a324a;border-radius:12px;padding:10px;background:#0f1424}
+    input[type="file"]{border:1px dashed #2a324a;border-radius:12px;padding:10px;background:#0f1424;width:100%}
     button{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;background:var(--accent);color:#001019;font-weight:700}
     button.ghost{background:transparent;border:1px solid #2a324a;color:#bcd}
     .muted{color:var(--muted)}
@@ -25,7 +24,7 @@
     .grid2{display:grid;gap:10px;grid-template-columns:1fr auto}
     .progress{height:14px;background:#0f1424;border-radius:999px;overflow:hidden;border:1px solid #2a324a}
     .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#7ff);transition:width .15s}
-    .status{white-space:pre-wrap;background:#0f1424;border-radius:12px;padding:12px;min-height:100px;max-height:240px;overflow:auto;border:1px solid #2a324a}
+    .status{white-space:pre-wrap;background:#0f1424;border-radius:12px;padding:12px;min-height:110px;max-height:260px;overflow:auto;border:1px solid #2a324a}
     .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0f1424;border:1px solid #2a324a;margin-right:6px;font-size:.8rem}
     .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
     a{color:#7fd8ff}
@@ -36,22 +35,19 @@
   <div class="wrap">
     <div class="card">
       <h1>📦 P2P File Share (WebRTC + PeerJS)</h1>
-      <p class="muted">Selecciona un fichero → comparte la URL → el receptor abre la URL y descarga. Mantén este navegador abierto hasta finalizar ✅.</p>
+      <p class="muted">Selecciona un fichero → comparte la URL → el receptor abre la URL y descarga. <strong>No cierres</strong> el navegador emisor hasta que finalice ✅.</p>
 
       <div class="row">
         <section>
-          <h2>1) Configuración de señalización / ICE (opcional)</h2>
+          <h2>1) Señalización e ICE</h2>
           <div class="row">
             <div>
               <label>Servidor PeerJS (vacío = Cloud)</label>
               <input id="host" type="text" placeholder="p.ej. peerjs.com o tu.domino.com">
             </div>
             <div>
-              <label>Secure (HTTPS/WSS)</label>
-              <select id="secure">
-                <option value="true" selected>true</option>
-                <option value="false">false</option>
-              </select>
+              <label>Secure</label>
+              <select id="secure"><option value="true" selected>true</option><option value="false">false</option></select>
             </div>
             <div>
               <label>Puerto</label>
@@ -62,17 +58,17 @@
               <input id="path" type="text" placeholder="/" />
             </div>
           </div>
+
           <details>
-            <summary>ICE servers (STUN/TURN)</summary>
-            <label>STUN URLs (coma separadas)</label>
-            <input id="stun" type="text" placeholder="stun:stun.l.google.com:19302, stun:global.stun.twilio.com:3478?transport=udp">
-            <label>TURN URL (opc., p.ej. turn:turn.example.com:3478)</label>
+            <summary>TURN (opcional para NAT muy estricto)</summary>
+            <label>TURN URL (p.ej. turn:turn.example.com:3478)</label>
             <input id="turnUrl" type="text" placeholder="turn:turn.example.com:3478">
             <label>TURN usuario</label>
             <input id="turnUser" type="text" placeholder="usuario">
             <label>TURN contraseña</label>
             <input id="turnPass" type="text" placeholder="contraseña">
           </details>
+
           <div style="margin-top:8px">
             <button id="btnInit">Inicializar Peer</button>
             <span class="pill">Peer ID: <span id="peerId" class="mono">—</span></span>
@@ -112,12 +108,11 @@
       <div class="status" id="log"></div>
 
       <details style="margin-top:10px">
-        <summary>⚠️ Consejos de seguridad/buenas prácticas</summary>
+        <summary>⚠️ Buenas prácticas</summary>
         <ul>
-          <li>No cierres ni recargues el navegador emisor hasta que la barra llegue al 100% y el receptor confirme la descarga.</li>
-          <li>Evita enviar ficheros extremadamente grandes; este demo mantiene todo el fichero en memoria en el receptor (seguro <strong>&lt; 1&nbsp;GB</strong>). Para producción usa <em>streams</em> (WritableStream/StreamSaver) y reanudación.</li>
-          <li>Si estás tras NAT restrictivo, configura servidores <strong>TURN</strong> propios (con credenciales). STUN solo descubre rutas, no retransmite datos.</li>
-          <li>Verifica la URL de recepción manualmente si compartes fuera de tu LAN.</li>
+          <li>No cierres ni recargues el navegador emisor hasta que la barra marque 100% y recibas confirmación.</li>
+          <li>Demo pensado para archivos moderados (el receptor ensambla en RAM). Para gigantes, usa <em>streaming</em> (StreamSaver/WritableStream) y reanudación.</li>
+          <li>Con NAT muy restrictivo, añade un <strong>TURN</strong> autenticado (mejor que depender solo de STUN).</li>
         </ul>
       </details>
     </div>
@@ -131,10 +126,8 @@
   const $ = id => document.getElementById(id);
   const log = (msg, lvl='info') => {
     const time = new Date().toLocaleTimeString();
-    const color = lvl==='err'?'var(--err)':(lvl==='warn'?'var(--warn)':'#bcd');
     $('log').innerText += `[${time}] ${msg}\n`;
     $('log').scrollTop = $('log').scrollHeight;
-    // Colorizado simple (no innerHTML para evitar XSS)
   };
   const setState = s => $('state').innerText = s;
   const setBar = (num, den) => {
@@ -149,13 +142,20 @@
     return n.toFixed(n<10?2:1)+' '+u[i];
   };
 
-  /*** Estado global ***/
-  let peer = null;
-  let conn = null;
-  let isSender = false;
-  let selectedFile = null;
-  let retryCount = 0;
-  const MAX_RETRIES = 3;
+  /*** Estado ***/
+  let peer = null, conn = null;
+  let isSender = false, selectedFile = null;
+  let retryCount = 0; const MAX_RETRIES = 3;
+  const CHUNK = 64 * 1024; // sube a 64KB: suele rendir bien y es seguro para DataChannels
+
+  // Preconfiguración: STUN públicos para atravesar NAT
+  const DEFAULT_STUN = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
+    { urls: 'stun:stun.cloudflare.com:3478' }
+  ];
 
   /*** DOM ***/
   $('btnInit').addEventListener('click', initPeer);
@@ -169,19 +169,10 @@
     log('URL copiada al portapapeles.');
   });
 
-  // Autodetectar modo receptor si hay ?from=<peerId> en la URL
+  // Rol sugerido por URL
   const url = new URL(location.href);
   const fromId = url.searchParams.get('from');
-  if (fromId) {
-    $('role').innerText = 'Receptor';
-  } else {
-    $('role').innerText = 'Emisor (por defecto)';
-  }
-
-  // Inicializa automáticamente para reducir fricción
-  // (pero permite ajustar opciones antes si se desea)
-  // Damos un pequeño retraso para que el usuario edite campos si quiere.
-  setTimeout(() => { /* no auto init if user is typing */ }, 300);
+  $('role').innerText = fromId ? 'Receptor' : 'Emisor (por defecto)';
 
   /*** PeerJS ***/
   function buildPeerOptions(){
@@ -189,16 +180,9 @@
     const secure = $('secure').value === 'true';
     const port = $('port').value ? parseInt($('port').value,10) : (secure?443:80);
     const path = $('path').value.trim() || '/';
-    const stunList = ($('stun').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+
+    const iceServers = [...DEFAULT_STUN];
     const turnUrl = $('turnUrl').value.trim();
-    const iceServers = [];
-    // STUN por defecto si no hay nada
-    if (!stunList.length) {
-      iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
-      iceServers.push({ urls: 'stun:global.stun.twilio.com:3478?transport=udp' });
-    } else {
-      stunList.forEach(u => iceServers.push({ urls: u }));
-    }
     if (turnUrl) {
       const username = $('turnUser').value;
       const credential = $('turnPass').value;
@@ -225,69 +209,52 @@
       $('peerId').innerText = id;
       log(`Peer abierto con ID ${id}.`);
       setState('Listo');
-
-      // Si somos receptor (hay ?from=), conectar al emisor
       if (fromId) connectTo(fromId);
     });
 
     peer.on('disconnected', () => {
-      log('Desconectado de señalización. Intentando reconectar…', 'warn');
+      log('Se perdió señalización. Reintentando…', 'warn');
       setState('Desconectado (reintentando…)');
-      if (retryCount < MAX_RETRIES) {
-        retryCount++;
-        try { peer.reconnect(); } catch {}
-      } else {
-        log('Límite de reintentos alcanzado. Revisa el servidor Peer o tu red.', 'err');
-      }
+      if (retryCount < MAX_RETRIES) { retryCount++; try { peer.reconnect(); } catch {} }
+      else log('Límite de reintentos alcanzado.', 'err');
     });
 
-    peer.on('error', (err) => {
-      log('Peer error: ' + (err && err.message ? err.message : String(err)), 'err');
-      setState('Error');
-    });
+    peer.on('error', (err) => { log('Peer error: ' + (err?.message||String(err)), 'err'); setState('Error'); });
+    peer.on('close', () => { log('Peer cerrado.', 'warn'); setState('Cerrado'); });
 
-    peer.on('close', () => {
-      log('Peer cerrado.', 'warn');
-      setState('Cerrado');
-    });
-
-    // Aceptar conexiones entrantes (somos emisor si recibimos una conexión)
+    // Aceptar conexiones entrantes → este será el EMISOR
     peer.on('connection', (c) => {
       log(`Conexión entrante de ${c.peer}`);
-      conn = c;
-      $('remoteId').innerText = c.peer;
-      isSender = true; // quien recibe la conexión empuja el fichero
+      conn = c; $('remoteId').innerText = c.peer; isSender = true;
       setupDataConnHandlers(conn);
-      // Enviar metadatos y luego datos si ya hay fichero
-      if (selectedFile) startSend();
-      else log('Selecciona un fichero para empezar la transferencia.');
+      if (selectedFile) startSend(); else log('Selecciona un fichero para empezar la transferencia.');
     });
 
-    // Habilitar compartir si ya hay fichero
     $('btnShare').disabled = !selectedFile;
   }
 
   function createShareUrl(){
     if (!peer || peer.disconnected) { log('Inicializa el Peer primero.', 'warn'); return; }
     if (!selectedFile) { log('Selecciona un fichero antes.', 'warn'); return; }
-    // Quien comparta la URL actuará como EMISOR (espera conexión del receptor)
-    // El receptor abrirá con ?from=<peerId>
     const u = new URL(location.href);
     u.searchParams.set('from', peer.id);
+    // Propagar también la config de señalización para el receptor (opcional)
+    const host = $('host').value.trim(); if (host) u.searchParams.set('host', host);
+    const secure = $('secure').value; if (secure) u.searchParams.set('secure', secure);
+    const port = $('port').value.trim(); if (port) u.searchParams.set('port', port);
+    const path = $('path').value.trim(); if (path) u.searchParams.set('path', path);
+
     const share = u.toString();
     $('shareUrl').value = share;
     $('btnCopy').disabled = false;
     log('Comparte esta URL con el receptor. No cierres este navegador hasta finalizar ✅');
-    setState('Esperando que el receptor se conecte…');
-    // Aviso visible:
-    alert('¡URL lista! Pégala en el navegador receptor. Mantén esta pestaña abierta hasta que la barra marque 100%.');
+    setState('Esperando conexión del receptor…');
+    alert('¡URL lista! Pégala en el navegador receptor. Mantén esta pestaña abierta hasta el 100%.');
   }
 
   function connectTo(remoteId){
     if (!peer || peer.disconnected) { log('Inicializa el Peer primero.', 'warn'); return; }
-    isSender = false;
-    $('role').innerText = 'Receptor';
-    $('remoteId').innerText = remoteId;
+    isSender = false; $('role').innerText = 'Receptor'; $('remoteId').innerText = remoteId;
     log(`Conectando con ${remoteId}…`);
     conn = peer.connect(remoteId, { reliable: true, serialization: 'binary' });
     setupDataConnHandlers(conn);
@@ -297,123 +264,134 @@
     c.on('open', () => {
       log('DataChannel abierto.');
       setState(isSender ? 'Listo para enviar' : 'Esperando datos…');
-
-      // Diagnóstico: intentar enganchar estados ICE si es accesible
-      try {
-        const pc = c._pc || c.peerConnection || c.provider?.connections?.[c.peer]?.[0]?._pc;
-        if (pc) {
-          log(`ICE connection state: ${pc.iceConnectionState}`);
-          pc.addEventListener('iceconnectionstatechange', () => {
-            log(`ICE state → ${pc.iceConnectionState}`);
-          });
-          pc.addEventListener('connectionstatechange', () => {
-            log(`PeerConn state → ${pc.connectionState}`);
-          });
-        } else {
-          log('PeerConnection interno no accesible para diagnóstico fino (ok).');
-        }
-      } catch (e) { /* opcional */ }
+      wireDiagnostics(c);
     });
-
     c.on('data', handleIncomingData);
     c.on('error', (e) => { log('Conn error: ' + e.message, 'err'); setState('Error'); });
     c.on('close', () => { log('Conexión cerrada.'); if (!isSender) finalizeReceive(); });
   }
 
-  /*** Envío en chunks con backpressure ***/
-  const CHUNK = 16 * 1024; // 16KB seguro para DataChannels
-  let sendOffset = 0;
-  let sendTimer = null;
+  /*** Diagnóstico ICE / ruta seleccionada ***/
+  let statsTimer = null;
+  function wireDiagnostics(c){
+    try {
+      const pc = c._pc || c.peerConnection || c.provider?.connections?.[c.peer]?.[0]?._pc;
+      if (!pc) { log('RTCPeerConnection no accesible para estadísticas (ok).'); return; }
 
+      log(`ICE state: ${pc.iceConnectionState} · Conn state: ${pc.connectionState}`);
+      pc.addEventListener('iceconnectionstatechange', ()=>log(`ICE state → ${pc.iceConnectionState}`));
+      pc.addEventListener('connectionstatechange', ()=>log(`PeerConn state → ${pc.connectionState}`));
+
+      // Muestra candidate pair seleccionado (host/srflx/relay)
+      if (statsTimer) clearInterval(statsTimer);
+      statsTimer = setInterval(async () => {
+        try {
+          const stats = await pc.getStats();
+          let selected = null, local = {}, remote = {};
+          stats.forEach(report => {
+            if (report.type === 'transport' && report.selectedCandidatePairId) {
+              selected = stats.get(report.selectedCandidatePairId);
+            }
+          });
+          if (!selected) {
+            stats.forEach(r => { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') selected = r; });
+          }
+          if (selected) {
+            local = stats.get(selected.localCandidateId);
+            remote = stats.get(selected.remoteCandidateId);
+            if (local && remote) {
+              const line = `Ruta: local=${local.candidateType}/${local.protocol}@${local.address||local.ip}:${local.port} ⇄ `+
+                           `remoto=${remote.candidateType}/${remote.protocol}@${remote.address||remote.ip}:${remote.port}`;
+              // Solo loggear si cambia
+              if (wireDiagnostics._lastLine !== line) {
+                wireDiagnostics._lastLine = line;
+                log(line);
+              }
+            }
+          }
+        } catch {}
+      }, 1000);
+    } catch {}
+  }
+
+  /*** Envío con backpressure real ***/
+  let sendOffset = 0, sending = false;
   function startSend(){
     if (!conn || conn.open !== true) { log('No hay conexión abierta con receptor.', 'warn'); return; }
     if (!selectedFile) { log('Selecciona un fichero.', 'warn'); return; }
 
-    // Enviar metadatos primero
-    const meta = {
-      type: 'meta',
-      name: selectedFile.name,
-      size: selectedFile.size,
-      mime: selectedFile.type || 'application/octet-stream'
-    };
+    // Metadatos
+    const meta = { type: 'meta', name: selectedFile.name, size: selectedFile.size, mime: selectedFile.type || 'application/octet-stream' };
     conn.send(meta);
     log(`Metadatos enviados: ${meta.name} (${human(meta.size)})`);
 
-    // Enviar datos por partes con control de buffer
-    sendOffset = 0;
-    setBar(0, selectedFile.size);
-    setState('Enviando…');
-    window.onbeforeunload = () => 'La transferencia no ha terminado. ¿Seguro que quieres salir?';
+    // Preparar DataChannel backpressure (si tiene el pc accesible)
+    try {
+      const pc = conn._pc || conn.peerConnection || conn.provider?.connections?.[conn.peer]?.[0]?._pc;
+      const dc = pc && pc.sctp && pc.sctp.transport ? null : null; // PeerJS maneja internamente; usamos bufferSize expuesto
+    } catch {}
 
-    const pump = () => {
+    sendOffset = 0; setBar(0, selectedFile.size); setState('Enviando…');
+    window.onbeforeunload = () => 'La transferencia no ha terminado. ¿Seguro que quieres salir?';
+    sending = true;
+
+    const pump = async () => {
+      if (!sending) return;
       try {
         while (conn.open && sendOffset < selectedFile.size) {
-          if (conn.bufferSize > 2 * 1024 * 1024) { // ~2MB en buffer → pausa
-            break;
-          }
-          const chunk = selectedFile.slice(sendOffset, sendOffset + CHUNK);
-          sendOffset += CHUNK;
-          chunk.arrayBuffer().then(buf => conn.send(buf));
-          setBar(Math.min(sendOffset, selectedFile.size), selectedFile.size);
+          // Control de buffer: PeerJS expone bufferSize (bytes pendientes)
+          if (conn.bufferSize > 2 * 1024 * 1024) break; // pausa si > ~2MB
+          const end = Math.min(sendOffset + CHUNK, selectedFile.size);
+          const chunk = selectedFile.slice(sendOffset, end);
+          const buf = await chunk.arrayBuffer();
+          conn.send(buf);
+          sendOffset = end;
+          setBar(sendOffset, selectedFile.size);
         }
         if (sendOffset >= selectedFile.size) {
-          // Señal de fin
           conn.send({ type: 'eof' });
           setBar(selectedFile.size, selectedFile.size);
-          setState('Finalizado (esperando confirmación receptor)…');
-          log('Envío completo. Esperando confirmación…');
-          clearInterval(sendTimer);
-          sendTimer = null;
+          setState('Finalizado (esperando confirmación)…');
+          sending = false;
+        } else {
+          setTimeout(pump, 20);
         }
       } catch (e) {
         log('Error durante el envío: ' + e.message, 'err');
+        setTimeout(pump, 200);
       }
     };
-
-    if (sendTimer) clearInterval(sendTimer);
-    sendTimer = setInterval(pump, 30);
     pump();
   }
 
   /*** Recepción ***/
-  let recvMeta = null;
-  let recvBuffers = [];
-  let receivedBytes = 0;
+  let recvMeta = null, recvBuffers = [], receivedBytes = 0;
   function handleIncomingData(d){
     if (d && d.type === 'meta') {
-      recvMeta = d;
-      recvBuffers = [];
-      receivedBytes = 0;
-      setBar(0, recvMeta.size);
-      setState('Recibiendo…');
+      recvMeta = d; recvBuffers = []; receivedBytes = 0;
+      setBar(0, recvMeta.size); setState('Recibiendo…');
       log(`Recibiendo: ${recvMeta.name} (${human(recvMeta.size)})`);
       return;
     }
-    if (d && d.type === 'eof') {
-      log('Señal de fin recibida. Ensamblando fichero…');
-      finalizeReceive();
+    if (d && d.type === 'eof') { log('Fin de datos. Ensamblando…'); finalizeReceive(); return; }
+    if (d && d.type === 'ack') {
+      log('Receptor confirmó la recepción ✅', 'ok');
+      setState('Completado'); window.onbeforeunload = null;
+      alert('Transferencia completada. Ya puedes cerrar esta pestaña.');
       return;
     }
-    // Asumimos ArrayBuffer
     if (d instanceof ArrayBuffer) {
-      recvBuffers.push(d);
-      receivedBytes += d.byteLength;
+      recvBuffers.push(d); receivedBytes += d.byteLength;
       setBar(receivedBytes, recvMeta ? recvMeta.size : receivedBytes);
-    } else {
-      // Por compatibilidad si llega Blob
-      try {
-        if (d instanceof Blob) {
-          recvBuffers.push(d);
-          receivedBytes += d.size;
-          setBar(receivedBytes, recvMeta ? recvMeta.size : receivedBytes);
-        }
-      } catch {}
+    } else if (typeof Blob !== 'undefined' && d instanceof Blob) {
+      recvBuffers.push(d); receivedBytes += d.size;
+      setBar(receivedBytes, recvMeta ? recvMeta.size : receivedBytes);
     }
   }
 
   function finalizeReceive(){
     try {
-      if (!recvMeta) { log('No hay metadatos; nada que ensamblar.'); return; }
+      if (!recvMeta) { log('No hay metadatos para ensamblar.'); return; }
       const blob = new Blob(recvBuffers, { type: recvMeta.mime || 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = $('downloadLink');
@@ -422,58 +400,37 @@
       $('downloadBox').style.display = '';
       setState('¡Recibido! Descarga disponible.');
       setBar(recvMeta.size, recvMeta.size);
-      log('Recepción completada. Puedes cerrar el receptor si ya descargaste el archivo.', 'ok');
+      log('Recepción completada. Descarga el archivo y cierra si quieres.', 'ok');
       window.onbeforeunload = null;
-      // Enviar confirmación al emisor para que pueda liberar aviso
       if (conn && conn.open) conn.send({ type: 'ack' });
     } catch (e) {
       log('Error al ensamblar/descargar: ' + e.message, 'err');
       setState('Error en ensamblado');
     } finally {
-      // limpiar buffers para liberar memoria
       recvBuffers = [];
     }
   }
 
-  // Sanitiza nombre de fichero
   function sanitizeFileName(name){
-    return String(name || 'archivo.bin').replace(/[^\w\-. ]+/g,'_').slice(0,180);
+    return String(name||'archivo.bin').replace(/[^\w\-. ]+/g,'_').slice(0,180);
   }
 
-  // Recibir ACK en el emisor
-  // Lo tratamos en handleIncomingData si llega como objeto
-  const _origHandle = handleIncomingData;
-  handleIncomingData = function(d){
-    if (d && d.type === 'ack') {
-      log('Receptor confirmó la recepción ✅', 'ok');
-      setState('Completado');
-      window.onbeforeunload = null;
-      alert('Transferencia completada. Ya puedes cerrar esta pestaña.');
-      return;
-    }
-    _origHandle(d);
-  };
-
-  // Si el usuario ya tiene parámetros de servidor en la URL, precargarlos
+  // Hidratación de parámetros de URL (para que el receptor use mismo servidor si fue especificado)
   (function hydrateFromURL(){
     const p = new URL(location.href).searchParams;
     if (p.get('host')) $('host').value = p.get('host');
     if (p.get('secure')) $('secure').value = p.get('secure');
     if (p.get('port')) $('port').value = p.get('port');
     if (p.get('path')) $('path').value = p.get('path');
-    if (p.get('stun')) $('stun').value = p.get('stun');
-    if (p.get('turnUrl')) $('turnUrl').value = p.get('turnUrl');
-    if (p.get('turnUser')) $('turnUser').value = p.get('turnUser');
-    if (p.get('turnPass')) $('turnPass').value = p.get('turnPass');
   })();
 
-  // UX: Si el usuario pulsa Enter en inputs, no recargar página
+  // UX: evita recarga por Enter en inputs
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && ['INPUT','SELECT'].includes(e.target.tagName)) e.preventDefault();
   });
 
-  // Auto-inicializar si el usuario no cambia la config en 1s (comodidad)
-  let autoTimer = setTimeout(() => { if (!$('peerId').innerText || $('peerId').innerText==='—') initPeer(); }, 1000);
+  // Auto-inicializar rápido para comodidad
+  setTimeout(() => { if (!$('peerId').innerText || $('peerId').innerText==='—') initPeer(); }, 600);
 })();
 </script>
 </body>
