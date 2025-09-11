@@ -1,329 +1,480 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<title>P2P File Share · PeerJS (auto ready + STUN)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta http-equiv="Content-Security-Policy"
-  content="default-src 'self' https://unpkg.com https://peerjs.com; script-src 'self' https://unpkg.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src https: wss:; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'">
-<style>
-:root{--bg:#0b1020;--card:#141a2a;--muted:#9fb0d0;--accent:#46c3ff;--ok:#38d39f;--warn:#ffcc00;--err:#ff6677}
-*{box-sizing:border-box} body{margin:0;background:var(--bg);color:#fff;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif}
-.wrap{max-width:960px;margin:auto;padding:16px}.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-h1{margin:0 0 8px;font-size:1.35rem} h2{margin:14px 0 8px;font-size:1.05rem;color:var(--accent)}
-.row{display:grid;gap:12px;grid-template-columns:1fr}@media(min-width:720px){.row{grid-template-columns:1fr 1fr}}
-label{display:block;font-size:.9rem;margin:.4rem 0 .2rem;color:var(--muted)}
-input[type="text"],input[type="url"],input[type="number"],select{width:100%;padding:10px;border-radius:12px;border:1px solid #2a324a;background:#0f1424;color:#fff}
-input[type="file"]{width:100%;padding:10px;border-radius:12px;border:1px dashed #2a324a;background:#0f1424}
-button{cursor:pointer;border:0;border-radius:12px;padding:10px 14px;background:var(--accent);color:#001019;font-weight:700}
-button.ghost{background:transparent;border:1px solid #2a324a;color:#bcd}
-button[disabled]{opacity:.55;cursor:not-allowed}
-.muted{color:var(--muted)} .mono{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all}
-.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0f1424;border:1px solid #2a324a;margin-right:6px;font-size:.8rem}
-.progress{height:14px;background:#0f1424;border-radius:999px;overflow:hidden;border:1px solid #2a324a}.bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#7ff);transition:width .15s}
-.status{white-space:pre-wrap;background:#0f1424;border-radius:12px;padding:12px;min-height:110px;max-height:260px;overflow:auto;border:1px solid #2a324a}
-.ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)} a{color:#7fd8ff}
-.hint{font-size:.85rem;margin-top:6px}
-</style>
-<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha384-Nc3z3lIbjo4iC7cLW6Z0pQPCf2Bzqkbk1bAH6QOqVgd1m8J1E6b8i2rU8cG3Fv0w" crossorigin="anonymous"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P2P_FileTransfer - Transferencia segura de archivos by Daniel Peña Silva (mejorado)</title>
+  <meta name="description" content="Transferencia segura de archivos P2P entre navegadores usando WebRTC. Incluye fallback a TURN público y control de backpressure." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='55%' x='10%' font-size='80'>🔒</text></svg>">
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3a0ca3;
+      --accent-color: #7209b7;
+      --light-color: #f8f9fa;
+      --dark-color: #212529;
+      --success-color: #4cc9f0;
+      --warning-color: #f72585;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: var(--dark-color); background: linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; background: #fff; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,.1); overflow: hidden; }
+    header { background: linear-gradient(to right, var(--primary-color), var(--secondary-color)); color: #fff; padding: 2rem; text-align: center; }
+    h1 { font-size: 2.5rem; margin-bottom: .5rem; }
+    .subtitle { font-size: 1.05rem; opacity: .92; }
+    .main-content { display: flex; flex-direction: column; padding: 2rem; }
+    @media (min-width: 768px) { .main-content { flex-direction: row; } }
+    .sender-section, .receiver-section { flex: 1; padding: 1.5rem; }
+    .divider { width: 100%; height: 1px; background: #eee; margin: 1.5rem 0; }
+    @media (min-width: 768px) { .divider { width: 1px; height: auto; margin: 0 1.5rem; } }
+    .section-title { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--secondary-color); display: flex; align-items: center; }
+    .section-title svg { margin-right: 10px; }
+    .file-drop-area { border: 2px dashed #ccc; border-radius: 8px; padding: 2rem; text-align: center; transition: all .3s; margin-bottom: 1.5rem; cursor: pointer; }
+    .file-drop-area:hover, .file-drop-area.active { border-color: var(--primary-color); background: rgba(67,97,238,.05); }
+    .file-input { display: none; }
+    .file-info { margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; display: none; }
+    .btn { display: inline-block; padding: .8rem 1.5rem; background: var(--primary-color); color: #fff; border: none; border-radius: 50px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: all .3s; text-align: center; margin-top: 1rem; }
+    .btn:hover { background: var(--secondary-color); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,.1); }
+    .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-warning { background: var(--warning-color); }
+    .btn-warning:hover { background: #d81159; }
+    .share-link { margin-top: 1.5rem; display: none; }
+    .link-box { display: flex; margin-top: .5rem; }
+    .link-input { flex: 1; padding: .8rem; border: 1px solid #ddd; border-radius: 4px 0 0 4px; font-size: .9rem; }
+    .copy-btn { padding: .8rem 1.2rem; background: var(--accent-color); color: #fff; border: none; border-radius: 0 4px 4px 0; cursor: pointer; }
+    .progress-container { margin-top: 1.5rem; display: none; }
+    .progress-bar { height: 10px; background: #f0f0f0; border-radius: 5px; overflow: hidden; }
+    .progress { height: 100%; background: linear-gradient(to right, var(--primary-color), var(--accent-color)); width: 0%; transition: width .3s; }
+    .transfer-stats { display: flex; justify-content: space-between; margin-top: .5rem; font-size: .9rem; color: #666; }
+    .status { margin-top: 1rem; padding: 1rem; border-radius: 8px; display: none; }
+    .status.success { background: rgba(76,201,240,.1); border: 1px solid var(--success-color); color: #0a6c74; }
+    .status.error { background: rgba(247,37,133,.1); border: 1px solid var(--warning-color); color: #a4133c; }
+    .receiver-ui { display: none; }
+    footer { text-align: center; padding: 1.5rem; background: #f8f9fa; color: #6c757d; font-size: .9rem; }
+    .security-badge { display: inline-flex; align-items: center; background: rgba(76,201,240,.1); color: #0a6c74; padding: .5rem 1rem; border-radius: 50px; margin-top: 1rem; font-weight: 600; }
+    .security-badge svg { margin-right: 5px; }
+    .transfer-info { margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; display: none; }
+    .speedometer { display: flex; align-items: center; justify-content: space-around; margin-top: 1rem; }
+    .speed-value { font-size: 1.5rem; font-weight: bold; color: var(--primary-color); }
+    .speed-label { font-size: .9rem; color: #666; }
+    .pill { display:inline-block; padding:.25rem .6rem; border-radius:999px; background:#eef; color:#223; font-size:.8rem; margin-left:.5rem }
+  </style>
 </head>
 <body>
-<div class="wrap"><div class="card">
-  <h1>📦 P2P File Share (WebRTC + PeerJS)</h1>
-  <p class="muted">Selecciona un fichero → genera URL → ábrela en el receptor. <strong>No cierres</strong> el emisor hasta 100% ✅.</p>
+<main class="container" role="main" aria-label="Transferencia de archivos P2P">
+  <header role="banner">
+    <h1 tabindex="0">P2P_FileTransfer</h1>
+    <p class="subtitle" aria-label="Descripción">Transferencia segura de archivos entre dispositivos P2P sin servidor – by Daniel Peña Silva</p>
+  </header>
 
-  <div class="row">
-    <section>
-      <h2>1) Señalización e ICE</h2>
-      <div class="row">
-        <div><label>Servidor PeerJS (vacío = Cloud)</label><input id="host" type="text" placeholder="p.ej. peerjs.com o tu.domino.com"></div>
-        <div><label>Secure</label><select id="secure"><option value="true" selected>true</option><option value="false">false</option></select></div>
-        <div><label>Puerto</label><input id="port" type="number" placeholder="443"></div>
-        <div><label>Path</label><input id="path" type="text" placeholder="/"></div>
+  <section class="main-content" aria-label="Panel principal">
+    <section class="sender-section" aria-label="Enviar archivo">
+      <h2 class="section-title" tabindex="0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Enviar archivo <span id="connTypeSender" class="pill" title="Tipo de ruta ICE (directa/relay)">ICE: --</span>
+      </h2>
+
+      <div class="file-drop-area" id="dropArea" tabindex="0" aria-label="Área para arrastrar o seleccionar archivo">
+        <p>Haga clic o arrastre un archivo aquí</p>
+        <p class="small">(El tamaño máximo depende de su navegador)</p>
+        <input type="file" id="fileInput" class="file-input" aria-label="Seleccionar archivo" />
       </div>
-      <details><summary>TURN (opcional para NAT muy estricto)</summary>
-        <label>TURN URL</label><input id="turnUrl" type="text" placeholder="turn:turn.example.com:3478">
-        <label>TURN usuario</label><input id="turnUser" type="text" placeholder="usuario">
-        <label>TURN contraseña</label><input id="turnPass" type="text" placeholder="contraseña">
-      </details>
-      <div style="margin-top:8px">
-        <button id="btnInit">Inicializar Peer</button>
-        <span class="pill">Peer ID: <span id="peerId" class="mono">—</span></span>
-        <span class="pill">Servidor: <span id="srvInfo" class="mono">Cloud (auto)</span></span>
-        <div class="hint muted">Estado: <span id="peerReady" class="warn">inicializando…</span></div>
+
+      <div class="file-info" id="fileInfo">
+        <p><strong>Archivo:</strong> <span id="fileName"></span></p>
+        <p><strong>Tamaño:</strong> <span id="fileSize"></span></p>
       </div>
+
+      <button id="generateLinkBtn" class="btn" disabled aria-disabled="true">Generar enlace seguro</button>
+
+      <div class="share-link" id="shareLink" aria-live="polite">
+        <p>Comparte este enlace con el destinatario:</p>
+        <div class="link-box">
+          <input type="text" id="linkInput" class="link-input" readonly aria-label="Enlace seguro generado" />
+          <button id="copyLinkBtn" class="copy-btn" aria-label="Copiar enlace al portapapeles">Copiar</button>
+        </div>
+        <p class="security-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          Conexión segura P2P
+        </p>
+      </div>
+
+      <div class="progress-container" id="progressContainer" aria-live="polite">
+        <p>Transferencia en progreso:</p>
+        <div class="progress-bar"><div class="progress" id="progressBar"></div></div>
+        <div class="transfer-stats">
+          <span id="progressText">0%</span>
+          <span id="transferredSize">0 B / 0 B</span>
+        </div>
+      </div>
+
+      <div class="transfer-info" id="transferInfo" aria-live="polite">
+        <div class="speedometer">
+          <div><div class="speed-value" id="speedValue">0 KB/s</div><div class="speed-label">Velocidad</div></div>
+          <div><div class="speed-value" id="timeLeft">--:--</div><div class="speed-label">Tiempo restante</div></div>
+        </div>
+      </div>
+
+      <div class="status" id="statusMessage" role="status" aria-live="assertive"></div>
     </section>
 
-    <section>
-      <h2>2) Compartir / Recibir</h2>
-      <label>Tu fichero</label>
-      <input id="fileInput" type="file" />
-      <div class="hint muted">Necesitas: <span id="needFile" class="warn">elegir archivo</span> + <span id="needPeer" class="warn">Peer listo</span></div>
-      <div style="display:grid;gap:10px;grid-template-columns:1fr auto;margin-top:8px">
-        <button id="btnShare" disabled>Generar URL de recepción</button>
-        <button id="btnCopy" class="ghost" disabled>Copiar URL</button>
-      </div>
-      <label>URL para receptor</label>
-      <input id="shareUrl" type="url" readonly>
-      <div style="margin-top:6px">
-        <span class="pill">Rol: <strong id="role">auto</strong></span>
-        <span class="pill">Conectado a: <span id="remoteId" class="mono">—</span></span>
+    <div class="divider" aria-hidden="true"></div>
+
+    <section class="receiver-section" aria-label="Recibir archivo">
+      <h2 class="section-title" tabindex="0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Recibir archivo <span id="connTypeReceiver" class="pill" title="Tipo de ruta ICE (directa/relay)">ICE: --</span>
+      </h2>
+
+      <div class="receiver-ui" id="receiverUI" aria-live="polite">
+        <p>Esperando archivo: <strong id="waitingFileName"></strong></p>
+        <p>Tamaño: <span id="waitingFileSize"></span></p>
+        <div class="progress-container" id="receiverProgress">
+          <p>Descargando:</p>
+          <div class="progress-bar"><div class="progress" id="receiverProgressBar"></div></div>
+          <div class="transfer-stats">
+            <span id="receiverProgressText">0%</span>
+            <span id="receiverTransferredSize">0 B / 0 B</span>
+          </div>
+        </div>
+        <button id="downloadBtn" class="btn" disabled aria-disabled="true">Descargar archivo</button>
+        <div class="status" id="receiverStatus" role="status" aria-live="assertive"></div>
       </div>
 
-      <h2>Progreso</h2>
-      <div class="progress"><div id="bar" class="bar"></div></div>
-      <div style="display:grid;grid-template-columns:1fr auto">
-        <div class="muted">Enviado/Recibido: <span id="progressTxt">0 / 0</span></div>
-        <div class="muted" style="text-align:right">Estado: <span id="state">Idle</span></div>
-      </div>
-
-      <div id="downloadBox" style="display:none;margin-top:10px">
-        <a id="downloadLink" download class="pill">Descargar fichero recibido</a>
-      </div>
+      <p id="receiverInstructions" aria-label="Instrucciones para recibir archivo">Para recibir un archivo, use el enlace proporcionado por el remitente.</p>
     </section>
-  </div>
+  </section>
 
-  <h2>Logs & Diagnóstico</h2>
-  <div class="status" id="log"></div>
-  <details style="margin-top:10px"><summary>⚠️ Consejos</summary>
-    <ul>
-      <li>Para mejor compatibilidad, sirve el archivo vía <code>http://localhost</code> (p.ej., <code>python -m http.server 8000</code>). Algunos navegadores limitan WebRTC en <code>file://</code>.</li>
-      <li>STUN públicos (Google/Twilio/Cloudflare) ya preconfigurados. Para NAT muy estricto, añade TURN propio.</li>
-    </ul>
-  </details>
-</div></div>
+  <footer role="contentinfo">
+    <p>SecureP2PTransfer – Transferencia directa entre navegadores usando WebRTC.</p>
+    <p>Los archivos nunca se almacenan en servidores externos. Si el emisor cierra el navegador, la transmisión se corta.</p>
+  </footer>
+</main>
 
 <script>
-(() => {
-  'use strict';
-  const $ = id => document.getElementById(id);
-  const log = (m,l='info')=>{const t=new Date().toLocaleTimeString();$('log').innerText+=`[${t}] ${m}\n`;$('log').scrollTop=$('log').scrollHeight;}
-  const setState = s => $('state').innerText = s;
-  const human = b => { if(!Number.isFinite(b)) return '0 B'; const u=['B','KB','MB','GB','TB'];let i=0,n=b;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(n<10?2:1)+' '+u[i]; }
-  const setBar = (num,den)=>{const pct=den?Math.min(100,Math.round((num/den)*100)):0;$('bar').style.width=pct+'%';$('progressTxt').innerText=human(num)+' / '+human(den);}
-
-  // Estado
-  let peer=null, conn=null, isSender=false, selectedFile=null;
-  let retryCount=0; const MAX_RETRIES=3;
-  const CHUNK=64*1024;
-
-  // STUN públicos
-  const DEFAULT_STUN=[
-    {urls:'stun:stun.l.google.com:19302'},
-    {urls:'stun:stun1.l.google.com:19302'},
-    {urls:'stun:stun2.l.google.com:19302'},
-    {urls:'stun:global.stun.twilio.com:3478?transport=udp'},
-    {urls:'stun:stun.cloudflare.com:3478'}
+  // ===== Config ICE: STUN + TURN público (OpenRelay) =====
+  // Fuente: OpenRelay (openrelay.metered.ca) proporciona TURN gratuito con límites.
+  const ICE_SERVERS = [
+    { urls: [
+      'stun:stun.l.google.com:19302',
+      'stun:stun1.l.google.com:19302',
+      'stun:stun2.l.google.com:19302',
+      'stun:stun3.l.google.com:19302',
+      'stun:stun4.l.google.com:19302'
+    ]},
+    { urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp'
+    ], username: 'openrelayproject', credential: 'openrelayproject' }
   ];
 
-  // UI enablement
-  function refreshShareEnabled(){
-    const ready = !!(peer && peer.open);
-    $('needPeer').className = ready ? 'ok' : 'warn';
-    $('needPeer').textContent = ready ? 'Peer listo' : 'Peer no listo';
-    const hasFile = !!selectedFile;
-    $('needFile').className = hasFile ? 'ok' : 'warn';
-    $('needFile').textContent = hasFile ? 'archivo seleccionado' : 'elegir archivo';
-    $('btnShare').disabled = !(ready && hasFile);
-  }
+  // ===== Señalización PeerJS (usa el cloud por defecto) + ICE propio
+  const PEER_OPTIONS = {
+    // secure:true, host y path se autoconfiguran al cloud gratuito de PeerJS si no se indica.
+    config: { iceServers: ICE_SERVERS, iceTransportPolicy: 'all' }
+  };
 
-  // Build opciones Peer
-  function buildPeerOptions(){
-    const host=$('host').value.trim();
-    const secure=$('secure').value==='true';
-    const port=$('port').value?parseInt($('port').value,10):(secure?443:80);
-    const path=$('path').value.trim()||'/';
-    const iceServers=[...DEFAULT_STUN];
-    const turnUrl=$('turnUrl').value.trim();
-    if(turnUrl){
-      const t={urls:turnUrl};
-      if($('turnUser').value) t.username=$('turnUser').value;
-      if($('turnPass').value) t.credential=$('turnPass').value;
-      iceServers.push(t);
+  document.addEventListener('DOMContentLoaded', () => {
+    /* Accesibilidad: manejo de foco cíclico */
+    const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    document.body.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        const focusables = Array.from(document.querySelectorAll(focusableElements)).filter(el => !el.disabled && el.offsetParent !== null);
+        if (focusables.length) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && document.activeElement === first) { last.focus(); e.preventDefault(); }
+          else if (!e.shiftKey && document.activeElement === last) { first.focus(); e.preventDefault(); }
+        }
+      }
+    });
+
+    // UI refs
+    const dropArea = document.getElementById('dropArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const generateLinkBtn = document.getElementById('generateLinkBtn');
+    const shareLink = document.getElementById('shareLink');
+    const linkInput = document.getElementById('linkInput');
+    const copyLinkBtn = document.getElementById('copyLinkBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const transferredSize = document.getElementById('transferredSize');
+    const transferInfo = document.getElementById('transferInfo');
+    const speedValue = document.getElementById('speedValue');
+    const timeLeft = document.getElementById('timeLeft');
+    const statusMessage = document.getElementById('statusMessage');
+    const receiverUI = document.getElementById('receiverUI');
+    const receiverInstructions = document.getElementById('receiverInstructions');
+    const waitingFileName = document.getElementById('waitingFileName');
+    const waitingFileSize = document.getElementById('waitingFileSize');
+    const receiverProgress = document.getElementById('receiverProgress');
+    const receiverProgressBar = document.getElementById('receiverProgressBar');
+    const receiverProgressText = document.getElementById('receiverProgressText');
+    const receiverTransferredSize = document.getElementById('receiverTransferredSize');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const receiverStatus = document.getElementById('receiverStatus');
+    const connTypeSender = document.getElementById('connTypeSender');
+    const connTypeReceiver = document.getElementById('connTypeReceiver');
+
+    // State
+    let selectedFile = null;
+    let peer = null; // PeerJS Peer
+    let connection = null; // DataConnection (PeerJS)
+    let transferStartTime = null;
+    let speedHistory = [];
+    let encryptionKey = null; // CryptoKey (AES-GCM)
+
+    // Drag & drop
+    dropArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFileSelect);
+    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('active'); });
+    dropArea.addEventListener('dragleave', () => dropArea.classList.remove('active'));
+    dropArea.addEventListener('drop', e => { e.preventDefault(); dropArea.classList.remove('active'); if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; handleFileSelect(e); } });
+
+    function handleFileSelect(e) {
+      selectedFile = e.target.files?.[0] || e.dataTransfer?.files?.[0] || null;
+      if (selectedFile) {
+        fileName.textContent = selectedFile.name;
+        fileSize.textContent = formatFileSize(selectedFile.size);
+        fileInfo.style.display = 'block';
+        generateLinkBtn.disabled = false;
+        transferredSize.textContent = `0 B / ${formatFileSize(selectedFile.size)}`;
+      }
     }
-    const base={debug:2,config:{iceServers}};
-    if(host) Object.assign(base,{host,port,path,secure});
-    return base;
-  }
 
-  function initPeer(){
-    if(peer && !peer.destroyed) try{peer.destroy();}catch{}
-    const opts=buildPeerOptions();
-    const usingCloud = !('host' in opts);
-    $('srvInfo').innerText = usingCloud ? 'Cloud (auto)' : `${opts.secure?'wss':'ws'}://${opts.host}:${opts.port}${opts.path}`;
-    log(`Inicializando PeerJS… Servidor: ${$('srvInfo').innerText}`);
-    peer=new Peer(opts);
+    // ===== Generar enlace seguro (clave se comparte en el hash) =====
+    generateLinkBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      generateLinkBtn.disabled = true; statusMessage.style.display = 'none';
+      const channelId = generateChannelId();
 
-    $('peerReady').textContent='abriendo…'; $('peerReady').className='warn'; refreshShareEnabled();
+      // Generar clave AES-GCM (la IV será por-chunk)
+      const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+      encryptionKey = key;
+      const raw = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+      const keyB64 = btoa(String.fromCharCode(...raw));
 
-    peer.on('open',(id)=>{
-      $('peerId').innerText=id;
-      $('peerReady').textContent='listo'; $('peerReady').className='ok';
-      log(`Peer abierto con ID ${id}.`);
-      setState('Listo');
-      refreshShareEnabled();
-      if(fromId) connectTo(fromId);
+      const link = `${location.origin}${location.pathname}#${channelId}:${keyB64}`; // (Sin IV global)
+      linkInput.value = link; shareLink.style.display = 'block';
+
+      // Inicializar PeerJS (emisor) con TURN/STUN
+      peer = new Peer(channelId, PEER_OPTIONS);
+      attachPeerDiagnostics(peer, connTypeSender);
+
+      peer.on('open', id => {
+        peer.on('connection', conn => {
+          connection = conn; setupDataChannelSender();
+        });
+      });
+      peer.on('error', err => showStatus(statusMessage, `Error PeerJS: ${err.type || err.message}`, true));
     });
 
-    peer.on('disconnected',()=>{
-      log('Se perdió señalización. Reintentando…','warn');
-      $('peerReady').textContent='reconectando…'; $('peerReady').className='warn';
-      setState('Desconectado (reintentando…)');
-      if(retryCount<MAX_RETRIES){retryCount++;try{peer.reconnect();}catch{}}
-      else log('Límite de reintentos alcanzado.','err');
-      refreshShareEnabled();
+    // ===== Envío: DataChannel con backpressure y cifrado =====
+    function setupDataChannelSender() {
+      const dc = connection;
+      showStatus(statusMessage, 'Destinatario conectado. Preparando transferencia...', false, true);
+
+      dc.on('open', () => {
+        // Metadatos
+        dc.send({ type: 'metadata', name: selectedFile.name, size: selectedFile.size, mimeType: selectedFile.type });
+        // UI
+        progressContainer.style.display = 'block'; transferInfo.style.display = 'block'; transferStartTime = Date.now();
+        // Backpressure
+        try { dc.bufferedAmountLowThreshold = 1 * 1024 * 1024; } catch (e) {}
+        sendFileInChunks(dc, selectedFile, encryptionKey);
+      });
+
+      dc.on('close', () => showStatus(statusMessage, 'Conexión cerrada', false));
+      dc.on('error', err => showStatus(statusMessage, `Error en la transferencia: ${err.message}`, true));
+    }
+
+    async function sendFileInChunks(dc, file, key) {
+      const reader = file.stream().getReader(); // Menos GC que FileReader incremental
+      const CHUNK_SIZE = 64 * 1024; // 64KB (mejor para menos overhead)
+      let sentBytes = 0;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        // trocear value (puede ser grande)
+        for (let offset = 0; offset < value.length; offset += CHUNK_SIZE) {
+          const slice = value.subarray(offset, Math.min(offset + CHUNK_SIZE, value.length));
+          // Backpressure: esperar si el buffer está alto
+          if (dc.bufferedAmount > 16 * 1024 * 1024) { // 16MB
+            await waitBufferedAmountLow(dc);
+          }
+          // Cifrar con IV aleatoria por chunk
+          const iv = crypto.getRandomValues(new Uint8Array(12));
+          const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, slice));
+          dc.send({ type: 'chunk', iv: Array.from(iv), data: Array.from(encrypted) });
+          sentBytes += slice.byteLength;
+          // Progreso
+          const progress = (sentBytes / file.size) * 100;
+          progressBar.style.width = `${progress}%`;
+          progressText.textContent = `${progress.toFixed(1)}%`;
+          transferredSize.textContent = `${formatFileSize(sentBytes)} / ${formatFileSize(file.size)}`;
+          // Velocidad y ETA
+          const elapsed = (Date.now() - transferStartTime) / 1000;
+          const currentSpeed = sentBytes / Math.max(elapsed, 0.001);
+          speedHistory.push(currentSpeed); if (speedHistory.length > 10) speedHistory.shift();
+          const avg = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
+          speedValue.textContent = `${formatFileSize(avg)}/s`;
+          if (avg > 0) { const remaining = file.size - sentBytes; timeLeft.textContent = formatTime(remaining / avg); }
+          // Notificar offset (opcional)
+          dc.send({ type: 'progress', offset: sentBytes });
+        }
+      }
+      showStatus(statusMessage, 'Archivo enviado con éxito', false, true);
+      setTimeout(() => { transferInfo.style.display = 'none'; }, 4000);
+    }
+
+    function waitBufferedAmountLow(dc) {
+      return new Promise(resolve => {
+        const check = () => { if (dc.bufferedAmount <= (dc.bufferedAmountLowThreshold || 1024 * 1024)) { dc.removeEventListener('bufferedamountlow', onLow); resolve(); } };
+        const onLow = () => check();
+        dc.addEventListener('bufferedamountlow', onLow, { once: true });
+        // Fallback timeout por si el evento no dispara
+        setTimeout(() => { dc.removeEventListener('bufferedamountlow', onLow); resolve(); }, 2000);
+      });
+    }
+
+    // Copiar enlace
+    copyLinkBtn.addEventListener('click', () => {
+      linkInput.select();
+      navigator.clipboard.writeText(linkInput.value).then(() => {
+        copyLinkBtn.textContent = '¡Copiado!';
+        copyLinkBtn.setAttribute('aria-label', 'Enlace copiado');
+        setTimeout(() => { copyLinkBtn.textContent = 'Copiar'; copyLinkBtn.setAttribute('aria-label', 'Copiar enlace al portapapeles'); }, 1500);
+      });
     });
 
-    peer.on('error',(err)=>{ log('Peer error: '+(err?.message||String(err)),'err'); setState('Error'); $('peerReady').textContent='error'; $('peerReady').className='err'; refreshShareEnabled(); });
-    peer.on('close',()=>{ log('Peer cerrado.','warn'); setState('Cerrado'); $('peerReady').textContent='cerrado'; $('peerReady').className='warn'; refreshShareEnabled(); });
+    // ===== Receptor si hay hash =====
+    if (location.hash) { initReceiver(location.hash.substring(1)); }
 
-    peer.on('connection',(c)=>{
-      log(`Conexión entrante de ${c.peer}`);
-      conn=c; $('remoteId').innerText=c.peer; isSender=true;
-      setupConn(c);
-      if(selectedFile) startSend(); else log('Selecciona un fichero para empezar la transferencia.');
-    });
-  }
+    function initReceiver(hash) {
+      receiverInstructions.style.display = 'none'; receiverUI.style.display = 'block';
+      let channel = hash, keyB64 = null;
+      if (hash.includes(':')) { const [c, k] = hash.split(':'); channel = c; keyB64 = k; }
+      if (!keyB64) { showStatus(receiverStatus, 'El enlace no contiene clave (hash).', true); return; }
+      // Importar clave
+      const raw = Uint8Array.from(atob(keyB64), c => c.charCodeAt(0));
+      crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['decrypt']).then(receiverKey => {
+        // PeerJS receptor
+        peer = new Peer(undefined, PEER_OPTIONS); // id aleatorio
+        attachPeerDiagnostics(peer, connTypeReceiver);
+        peer.on('open', id => {
+          const conn = peer.connect(channel, { reliable: true });
+          if (!conn) { showStatus(receiverStatus, 'No se pudo conectar con el remitente', true); return; }
+          connection = conn;
+          conn.on('open', () => {
+            showStatus(receiverStatus, 'Conectado al remitente. Esperando archivo...', false, true);
+            let received = 0; let fileMeta = null; const chunks = [];
+            conn.on('data', async (data) => {
+              if (data && data.type === 'metadata') {
+                fileMeta = data;
+                waitingFileName.textContent = data.name; waitingFileSize.textContent = formatFileSize(data.size);
+                receiverProgress.style.display = 'block'; receiverTransferredSize.textContent = `0 B / ${formatFileSize(data.size)}`;
+                return;
+              }
+              if (data && data.type === 'progress' && fileMeta) {
+                const p = (data.offset / fileMeta.size) * 100; receiverProgressBar.style.width = `${p}%`; receiverProgressText.textContent = `${p.toFixed(1)}%`; receiverTransferredSize.textContent = `${formatFileSize(data.offset)} / ${formatFileSize(fileMeta.size)}`; return;
+              }
+              if (data && data.type === 'chunk') {
+                try {
+                  const iv = new Uint8Array(data.iv);
+                  const enc = new Uint8Array(data.data).buffer;
+                  const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, receiverKey, enc);
+                  chunks.push(dec); received += dec.byteLength;
+                  if (fileMeta && received >= fileMeta.size) {
+                    showStatus(receiverStatus, 'Archivo recibido. Listo para descargar.', false, true);
+                    downloadBtn.disabled = false;
+                    downloadBtn.onclick = () => {
+                      const blob = new Blob(chunks, { type: fileMeta.mimeType });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a'); a.href = url; a.download = fileMeta.name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+                    };
+                  }
+                } catch (e) {
+                  showStatus(receiverStatus, 'Error al descifrar chunk.', true);
+                }
+              }
+            });
+          });
+          conn.on('error', err => showStatus(receiverStatus, `Error de conexión: ${err.message}`, true));
+        });
+        peer.on('error', err => showStatus(receiverStatus, `Error PeerJS: ${err.type || err.message}`, true));
+      }).catch(() => showStatus(receiverStatus, 'Clave inválida en el enlace.', true));
+    }
 
-  // Si clicas "Generar URL" y el Peer aún no está listo, esperamos a on('open') y continuamos.
-  function ensurePeerReadyThen(action){
-    if(peer && peer.open){ action(); return; }
-    log('Esperando a que el Peer esté listo…');
-    if(!peer) initPeer();
-    const onOpen=(id)=>{ try{peer.off('open', onOpen);}catch{} action(); };
-    peer.on('open', onOpen);
-  }
+    // ===== Utilidades =====
+    function showStatus(el, text, isError = false, show = true) {
+      el.textContent = text; el.className = 'status ' + (isError ? 'error' : 'success'); if (show) el.style.display = 'block';
+    }
 
-  function createShareUrl(){
-    ensurePeerReadyThen(()=>{
-      if(!selectedFile){ log('Selecciona un fichero primero.','warn'); return; }
-      const u=new URL(location.href);
-      u.searchParams.set('from', peer.id);
-      const host=$('host').value.trim(); if(host) u.searchParams.set('host',host);
-      const secure=$('secure').value; if(secure) u.searchParams.set('secure',secure);
-      const port=$('port').value.trim(); if(port) u.searchParams.set('port',port);
-      const path=$('path').value.trim(); if(path) u.searchParams.set('path',path);
-      $('shareUrl').value=u.toString();
-      $('btnCopy').disabled=false;
-      setState('Esperando conexión del receptor…');
-      log('URL generada. Compártela con el receptor. No cierres esta pestaña hasta finalizar ✅');
-      alert('¡URL lista! Pégala en el navegador receptor. Mantén esta pestaña abierta hasta 100%.');
-    });
-  }
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+      return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
 
-  function connectTo(remoteId){
-    if(!peer){ log('Inicializando Peer para conectar…'); initPeer(); }
-    isSender=false; $('role').innerText='Receptor'; $('remoteId').innerText=remoteId;
-    log(`Conectando con ${remoteId}…`);
-    conn=peer.connect(remoteId,{reliable:true,serialization:'binary'});
-    setupConn(conn);
-  }
+    function formatTime(seconds) {
+      if (!isFinite(seconds)) return '--:--'; const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60); return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
 
-  function setupConn(c){
-    c.on('open',()=>{ log('DataChannel abierto.'); setState(isSender?'Listo para enviar':'Esperando datos…'); wireDiagnostics(c); });
-    c.on('data', handleIncomingData);
-    c.on('error', e=>{ log('Conn error: '+e.message,'err'); setState('Error'); });
-    c.on('close',()=>{ log('Conexión cerrada.'); if(!isSender) finalizeReceive(); });
-  }
+    function generateChannelId() { return (crypto.randomUUID?.() || Math.random().toString(36).slice(2)) + Math.random().toString(36).slice(2, 10); }
 
-  // Diagnóstico ICE
-  let statsTimer=null;
-  function wireDiagnostics(c){
-    try{
-      const pc=c._pc||c.peerConnection||c.provider?.connections?.[c.peer]?.[0]?._pc;
-      if(!pc){ log('RTCPeerConnection no accesible para stats (ok).'); return; }
-      log(`ICE state: ${pc.iceConnectionState} · Conn state: ${pc.connectionState}`);
-      pc.addEventListener('iceconnectionstatechange',()=>log(`ICE state → ${pc.iceConnectionState}`));
-      pc.addEventListener('connectionstatechange',()=>log(`PeerConn state → ${pc.connectionState}`));
-      if(statsTimer) clearInterval(statsTimer);
-      statsTimer=setInterval(async()=>{
-        try{
-          const stats=await pc.getStats(); let selected=null,local={},remote={};
-          stats.forEach(r=>{ if(r.type==='transport' && r.selectedCandidatePairId) selected=stats.get(r.selectedCandidatePairId); });
-          if(!selected){ stats.forEach(r=>{ if(r.type==='candidate-pair'&&r.nominated&&r.state==='succeeded') selected=r; }); }
-          if(selected){ local=stats.get(selected.localCandidateId); remote=stats.get(selected.remoteCandidateId);
-            if(local&&remote){
-              const line=`Ruta: local=${local.candidateType}/${local.protocol}@${local.address||local.ip}:${local.port} ⇄ remoto=${remote.candidateType}/${remote.protocol}@${remote.address||remote.ip}:${remote.port}`;
-              if(wireDiagnostics._last!==line){ wireDiagnostics._last=line; log(line); }
+    // Mostrar tipo de ruta (directo vs relay) si el peerConnection es accesible
+    function attachPeerDiagnostics(peerInstance, badgeEl) {
+      // PeerJS expone peer.connections[peerId][0].peerConnection (no documentado) tras conectar
+      // Además, podemos inferir por candidates
+      const observe = setInterval(() => {
+        try {
+          for (const id in peerInstance.connections) {
+            const arr = peerInstance.connections[id];
+            if (arr && arr[0] && arr[0].peerConnection) {
+              const pc = arr[0].peerConnection;
+              clearInterval(observe);
+              pc.addEventListener('iceconnectionstatechange', () => {
+                const st = pc.iceConnectionState; badgeEl.textContent = `ICE: ${st}`;
+              });
+              pc.addEventListener('connectionstatechange', () => { /* noop */ });
+              pc.addEventListener('icecandidate', e => { /* noop */ });
+              // Stats cada 2s para detectar si usa relay
+              const probe = setInterval(async () => {
+                if (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected') {
+                  try {
+                    const stats = await pc.getStats();
+                    stats.forEach(report => {
+                      if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+                        const local = stats.get(report.localCandidateId);
+                        const remote = stats.get(report.remoteCandidateId);
+                        if (local || remote) {
+                          const via = (local?.relayProtocol || local?.candidateType) === 'relay' || (remote?.relayProtocol || remote?.candidateType) === 'relay' ? 'RELAY (TURN)' : 'DIRECTO (STUN)';
+                          badgeEl.textContent = `ICE: ${via}`;
+                        }
+                      }
+                    });
+                  } catch {}
+                } else if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
+                  badgeEl.textContent = 'ICE: FAILED (probando TURN)';
+                }
+              }, 2000);
             }
           }
-        }catch{}
-      },1000);
-    }catch{}
-  }
-
-  // Transferencia
-  let sendOffset=0, sending=false;
-  function startSend(){
-    if(!conn||conn.open!==true){ log('No hay conexión con receptor.','warn'); return; }
-    if(!selectedFile){ log('Selecciona un fichero.','warn'); return; }
-    const meta={type:'meta',name:selectedFile.name,size:selectedFile.size,mime:selectedFile.type||'application/octet-stream'};
-    conn.send(meta); log(`Metadatos enviados: ${meta.name} (${human(meta.size)})`);
-    sendOffset=0; setBar(0,selectedFile.size); setState('Enviando…'); window.onbeforeunload=()=> 'La transferencia no ha terminado. ¿Salir?'; sending=true;
-    const pump=async()=>{
-      if(!sending) return;
-      try{
-        while(conn.open && sendOffset<selectedFile.size){
-          if(conn.bufferSize>2*1024*1024) break;
-          const end=Math.min(sendOffset+CHUNK,selectedFile.size);
-          const buf=await selectedFile.slice(sendOffset,end).arrayBuffer();
-          conn.send(buf); sendOffset=end; setBar(sendOffset,selectedFile.size);
-        }
-        if(sendOffset>=selectedFile.size){
-          conn.send({type:'eof'}); setBar(selectedFile.size,selectedFile.size); setState('Finalizado (esperando confirmación)…'); sending=false;
-        }else{ setTimeout(pump,20); }
-      }catch(e){ log('Error durante envío: '+e.message,'err'); setTimeout(pump,200); }
-    }; pump();
-  }
-
-  let recvMeta=null, recvBuffers=[], receivedBytes=0;
-  function _handleData(d){
-    if(d && d.type==='meta'){ recvMeta=d; recvBuffers=[]; receivedBytes=0; setBar(0,recvMeta.size); setState('Recibiendo…'); log(`Recibiendo: ${recvMeta.name} (${human(recvMeta.size)})`); return; }
-    if(d && d.type==='eof'){ log('Fin de datos. Ensamblando…'); finalizeReceive(); return; }
-    if(d instanceof ArrayBuffer){ recvBuffers.push(d); receivedBytes+=d.byteLength; setBar(receivedBytes,recvMeta?recvMeta.size:receivedBytes); }
-    else if(typeof Blob!=='undefined' && d instanceof Blob){ recvBuffers.push(d); receivedBytes+=d.size; setBar(receivedBytes,recvMeta?recvMeta.size:receivedBytes); }
-  }
-  function handleIncomingData(d){
-    if(d && d.type==='ack'){ log('Receptor confirmó la recepción ✅','ok'); setState('Completado'); window.onbeforeunload=null; alert('Transferencia completada. Ya puedes cerrar esta pestaña.'); return; }
-    _handleData(d);
-  }
-
-  function finalizeReceive(){
-    try{
-      if(!recvMeta){ log('No hay metadatos.'); return; }
-      const blob=new Blob(recvBuffers,{type:recvMeta.mime||'application/octet-stream'});
-      const url=URL.createObjectURL(blob);
-      const a=$('downloadLink'); a.href=url; a.download=sanitize(recvMeta.name||'archivo.bin'); $('downloadBox').style.display='';
-      setState('¡Recibido! Descarga disponible.'); setBar(recvMeta.size,recvMeta.size); log('Recepción completada.','ok'); window.onbeforeunload=null;
-      if(conn&&conn.open) conn.send({type:'ack'});
-    }catch(e){ log('Error ensamblando: '+e.message,'err'); setState('Error en ensamblado'); }
-    finally{ recvBuffers=[]; }
-  }
-
-  const sanitize=n=>String(n||'archivo.bin').replace(/[^\w\-. ]+/g,'_').slice(0,180);
-
-  // Inputs
-  $('btnInit').addEventListener('click', initPeer);
-  $('fileInput').addEventListener('change', e=>{ selectedFile=e.target.files&&e.target.files[0]?e.target.files[0]:null; refreshShareEnabled(); });
-  $('btnShare').addEventListener('click', createShareUrl);
-  $('btnCopy').addEventListener('click', ()=>{ $('shareUrl').select(); document.execCommand('copy'); log('URL copiada.'); });
-
-  // Rol por URL
-  const url=new URL(location.href); const fromId=url.searchParams.get('from');
-  $('role').innerText = fromId ? 'Receptor' : 'Emisor (por defecto)';
-  // Hidratar señalización de URL
-  (function hydrate(){ const p=new URL(location.href).searchParams;
-    if(p.get('host')) $('host').value=p.get('host'); if(p.get('secure')) $('secure').value=p.get('secure');
-    if(p.get('port')) $('port').value=p.get('port'); if(p.get('path')) $('path').value=p.get('path');
-  })();
-
-  // UX: bloquear Enter que recarga
-  document.addEventListener('keydown', e=>{ if(e.key==='Enter' && ['INPUT','SELECT'].includes(e.target.tagName)) e.preventDefault(); });
-
-  // Auto-init (y refresco de botón) — corrige “no hace nada”
-  initPeer(); // iniciar ya
-  const enabler=setInterval(refreshShareEnabled, 200);
-})();
+        } catch {}
+      }, 500);
+      setTimeout(() => clearInterval(observe), 15000);
+    }
+  });
 </script>
+
+<!-- PeerJS desde CDN -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
 </body>
 </html>
