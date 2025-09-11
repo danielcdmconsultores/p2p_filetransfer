@@ -458,4 +458,23 @@
   (function hydrateFromURL(){
     const p = new URL(location.href).searchParams;
     if (p.get('host')) $('host').value = p.get('host');
-    if (p.get('secure')) $('secure').value =
+    if (p.get('secure')) $('secure').value = p.get('secure');
+    if (p.get('port')) $('port').value = p.get('port');
+    if (p.get('path')) $('path').value = p.get('path');
+    if (p.get('stun')) $('stun').value = p.get('stun');
+    if (p.get('turnUrl')) $('turnUrl').value = p.get('turnUrl');
+    if (p.get('turnUser')) $('turnUser').value = p.get('turnUser');
+    if (p.get('turnPass')) $('turnPass').value = p.get('turnPass');
+  })();
+
+  // UX: Si el usuario pulsa Enter en inputs, no recargar página
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && ['INPUT','SELECT'].includes(e.target.tagName)) e.preventDefault();
+  });
+
+  // Auto-inicializar si el usuario no cambia la config en 1s (comodidad)
+  let autoTimer = setTimeout(() => { if (!$('peerId').innerText || $('peerId').innerText==='—') initPeer(); }, 1000);
+})();
+</script>
+</body>
+</html>
